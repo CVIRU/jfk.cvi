@@ -344,7 +344,7 @@ NewMaster.One=rbind(NewMaster[NewMaster[,"DaysId"]==3,], NewMaster[NewMaster[,"D
 
 NewMaster.One=NewMaster.One[order(NewMaster.One[,"ID"]),]
 
-for (i in 1:118){
+for (i in 1:119){
   
   if (NewMaster.One[i,"Group"]=="Study Group"){
     
@@ -358,7 +358,32 @@ for (i in 1:118){
   
 }
 
-###Find propensity score for each observation for propensity score matching
+###Create a new Stroke Severity Number for every patient to standardize measurements to
+###be out of 10
+
+for (i in 1:119){
+  
+  if (NewMaster.One[i,"ACHosp.Stroke.Severity.Number"]==9999){
+    
+    NewMaster.One[i,"NewSSN"]=NA
+    
+  }else if (NewMaster.One[i,"ACHosp.Stroke.Severity.Type"]==1) {
+    
+    NewMaster.One[i,"NewSSN"]=(10*NewMaster.One[i,"ACHosp.Stroke.Severity.Number"])/42
+    
+  }else if (NewMaster.One[i,"ACHosp.Stroke.Severity.Type"]==2){
+    
+    NewMaster.One[i,"NewSSN"]=(10*NewMaster.One[i,"ACHosp.Stroke.Severity.Number"])/6
+    
+  }else {
+    
+    NewMaster.One[i,"NewSSN"]=(10*NewMaster.One[i,"ACHosp.Stroke.Severity.Number"])/5
+  }
+  
+}
+
+###Find propensity score for each observation for propensity score matching based on
+###medical history variables
 
 Medical.History.Variables=colnames(NewMaster.One)[47:69]
 
@@ -369,7 +394,7 @@ glm.out=glm(formula=fmla, family=binomial(logit),
 
 NewMaster.One[,"Propensity Score"]=glm.out$fitted.values
 
-###Calculate mahalonobis distances
+###Calculate mahalonobis distances based on three functional outcome scores
 
 #Set baseline averages for each patient as a data matrix and calculate the covariance matrix
 X=as.matrix(NewMaster.One[,c("Baseline Average.Mobility","Baseline Average.Activity","Baseline Average.Cognitive")])
@@ -387,9 +412,12 @@ for (i in 1:118){
   }
 }
 
+
+###place all the nonzero mahalanobis distances in a vector
 mahal.dist.vec=c(mahal.dist[mahal.dist>0])
 
-###Create a data matrix for the characteristics for each patient in the study group
+###Create a data matrix for the characteristics to be used for matching for each patient 
+###in the study group
 
 Study.Characteristics=as.data.frame(matrix(nrow=31, ncol=9))
 
@@ -415,6 +443,7 @@ colnames(Study.Characteristics)=c("ID","Age","Gender", "New Race","Baseline Aver
                                   "Baseline Average.Activity", "Baseline Average.Cognitive",
                                   "Type of Stroke", "Propensity Score")
 
+###Convert numeric observations back to their character counterparts
 
 for (i in 1:31){
 
@@ -451,7 +480,7 @@ NewMaster.One.Control=NewMaster.One[NewMaster.One[,"Group"]=="Control Group",]
 #Date Created: 3/29/2017                                                           #
 #Purpose: To match the data based on gender, race, age, baseline average score and #
 #         type of stroke for mobility, activity, or cognitive ability or print out #
-#         matching IDs and count of distinct study group IDs                       #                           #
+#         matching IDs and count number of distinct study group IDs matched        #                           #
 #Variables: AgeNum-width for age partial matching                                  #
 #           BaselineNum-width for baseline average partial matching                #
 #           ScoreNum-choice for which baseline average: 1 for Mobility, 2 for      #
@@ -468,14 +497,24 @@ NewMaster.One.Control=NewMaster.One[NewMaster.One[,"Group"]=="Control Group",]
 
 matching=function(AgeNum=2, BaselineNum=20, ScoreNum=1, PScoreNum=1, MahalNum=1, List=1){
   
+  ###Create vectors for the rows corresponding to each patient's observations in the study 
+  ###groupvand control group respectively
+  
   StudyRow.Index=which(NewMaster.One[,"Group"]=="Study Group")
+  ControlRow.Index=which(NewMaster.One[,"Group"]=="Control Group")
+  
+  ###calculate the quantile to be used when matching on mahalanobis distance
   
   delta=quantile(mahal.dist.vec, MahalNum)
   
+  
+  ###Create a vector to be used in conjunction with the "ScoreNum" input
   ScoreName=c("Mobility", "Activity", "Cognitive")
 
-  x=c(0,0)
+  ###initialize a vector to contain the matches
+  result=c(0,0)
   
+  ###match control group IDs to study group IDs based on the inputs given
   for (i in 1:88){
     
     for (j in 1:31){
@@ -487,45 +526,35 @@ matching=function(AgeNum=2, BaselineNum=20, ScoreNum=1, PScoreNum=1, MahalNum=1,
           NewMaster.One.Control[i,"Gender"]==Study.Characteristics[j,"Gender"] &
           NewMaster.One.Control[i,"New Race"]==Study.Characteristics[j,"New Race"] &
           NewMaster.One.Control[i,"Type.of.Stroke"]==Study.Characteristics[j,"Type of Stroke"] &
-          Study.Characteristics[j,"ID"]!=24 & NewMaster.One.Control[i,"Deceased_Y.N"]==FALSE &
+          Study.Characteristics[j,"ID"]!=24 &
           Study.Characteristics[j,"ID"]!=46 & Study.Characteristics[j,"ID"]!=124 &
           NewMaster.One.Control[i,"Propensity Score"]>=(Study.Characteristics[j,"Propensity Score"] - PScoreNum) & 
           NewMaster.One.Control[i,"Propensity Score"]<=(Study.Characteristics[j,"Propensity Score"] + PScoreNum) &
-          mahalanobis(X[i,], X[StudyRow.Index[j],], SX)<delta)
+          mahalanobis(X[ControlRow.Index[i],], X[StudyRow.Index[j],], SX)<=delta)
         
-        x=rbind(x,c(Study.Characteristics[j,"ID"], NewMaster.One.Control[i,"ID"]))
+        result=rbind(result,c(Study.Characteristics[j,"ID"], NewMaster.One.Control[i,"ID"]))
       
     }
     
   }
   
-  colnames(x)=c("Study ID", "Control ID")
+  colnames(result)=c("Study ID", "Control ID")
   
-  x=x[-1,]
   
-  x=x[order(x[,1], x[,2]),]
+  ###delete the values used to initialize the vector and order the observations by study 
+  ###group ID and control group ID
+  result=result[-1,]
   
-  Count=0
+  result=result[order(result[,1], result[,2]),]
   
-  for (i in 2:dim(x)[1]){
-    
-    if (x[i,1]!=x[i-1,1]){
-     
-      Count=Count+1
-       
-    }
-    
-  }
-  
-  if (x[1,1]!=x[2,1]){
-    
-    Count=Count+1
-    
-  }
+  ###count the number of distinct study group matches
+  Count=unique(result[,1])
 
+  ###return either the of matching IDs or the number of distinct study group matches
+  ###depending on given "List" input
   if (List==1){
   
-  return(x)
+  return(result)
     
   }
   
@@ -539,7 +568,7 @@ matching=function(AgeNum=2, BaselineNum=20, ScoreNum=1, PScoreNum=1, MahalNum=1,
 
 #################################End Function#######################################
 
-###Check function
+#####Check function####
 
 # matchrows=matching(AgeNum = 5,BaselineNum = 20, ScoreNum = 3, PScoreNum = .5, MahalNum = .5, List = 1)
 # 
@@ -555,6 +584,358 @@ matching=function(AgeNum=2, BaselineNum=20, ScoreNum=1, PScoreNum=1, MahalNum=1,
 # print(NewMaster.One[NewMaster.One[,"ID"]==matchrows[i,1] | NewMaster.One[,"ID"]==matchrows[i,2] , c("ID", "Group", "Age", "Gender", "New Race", "Baseline Average.Mobility", "Propensity Score")])
 # 
 # }
+
+
+##############################MATCHING ANALYSIS##################################
+
+
+#####################################Function#######################################
+#Name: analysis.1                                                                  #
+#Author: Traymon Beavers                                                           #
+#Date Created: 4/2/2017                                                            #
+#Purpose: To conduct a paired t test for patients with IDs matched by the          #
+#         "matching" function; returns p-values for 4th, 5th, and 6th follow ups   #
+#         for each functional outcome                                              #
+#Variables: MatchIDs-matrix containing ID matches created by "matching" function   #
+#                    for each functional outcome, concatenated by the rows;        #
+#                    mobility matches on top, activity matches in the middle, and  #
+#                    cognitive matches on the bottom                               #
+#           Length-vector of rows of mobility, activity, and cognitive ID matches  #
+#                  created by "matching" function, respectively                    #
+#           MatchConditions-label for the battery of t tests to be conducted       #
+####################################################################################
+
+
+analysis.1=function(MatchIDs=MatchIDs.5.20.6.75.All, Length=c(LengthM, LengthA, LengthC), 
+                  MatchConditions="5.20.6.75"){
+  
+  ###############################FOURTH FOLLOW UP###############################
+  
+  ###initialize matrix that will contain the results of analysis
+  
+  result=matrix(NA,9,5)
+  
+  colnames(result)=c("Match Condition", "Follow Up", "Score Type", "N", "P Value")
+  
+  result[,1]=rep(MatchConditions,9)
+  
+  result[,2]=c(rep(4,3), rep(5,3), rep(6,3))
+  
+  result[,3]=rep(c("Mobility", "Activity", "Cognitive"),3)
+  
+  ###conduct analysis for 4th day follow up for mobility scores
+  
+  test4data.Mobility=0
+  
+  for (i in 2:Length[1]){
+    
+    if (MatchIDs[i,1]!=MatchIDs[i-1,1]){
+      
+      studydiff=NewMaster[NewMaster[,"ID"]==MatchIDs[i,1] & NewMaster[,"DaysId"]==4, "PT.AM.PAC.Basic.Mobility.Score"] - NewMaster[NewMaster[,"ID"]==MatchIDs[i,1] & NewMaster[,"DaysId"]==4, "Baseline Average.Mobility"]
+      
+      controldiff=NewMaster[NewMaster[,"ID"]==MatchIDs[i,2] & NewMaster[,"DaysId"]==4, "PT.AM.PAC.Basic.Mobility.Score"] - NewMaster[NewMaster[,"ID"]==MatchIDs[i,2] & NewMaster[,"DaysId"]==4, "Baseline Average.Mobility"]
+      
+      test4data.Mobility=c(test4data.Mobility, studydiff-controldiff)
+      
+    }
+    
+  }
+  
+  if (MatchIDs[i,1]!=MatchIDs[i-1,1]){
+    
+    studydiff=NewMaster[NewMaster[,"ID"]==MatchIDs[i,1] & NewMaster[,"DaysId"]==4, "PT.AM.PAC.Basic.Mobility.Score"] - NewMaster[NewMaster[,"ID"]==MatchIDs[i,1] & NewMaster[,"DaysId"]==5, "Baseline Average.Mobility"]
+    
+    controldiff=NewMaster[NewMaster[,"ID"]==MatchIDs[i,2] & NewMaster[,"DaysId"]==4, "PT.AM.PAC.Basic.Mobility.Score"] - NewMaster[NewMaster[,"ID"]==MatchIDs[i,2] & NewMaster[,"DaysId"]==5, "Baseline Average.Mobility"]
+    
+    test4data.Mobility=c(test4data.Mobility, studydiff-controldiff)
+    
+  }
+  
+  test4data.Mobility=test4data.Mobility[-1]
+  
+  result[1,4]=t.test(test4data.Mobility, alternative="greater")$parameter + 1
+  
+  result[1,5]=t.test(test4data.Mobility, alternative="greater")$p.value
+  
+  ###conduct analysis for 4th day follow up for activity scores
+  
+  test4data.Activity=0
+  
+  for (i in (2 + Length[1]):(Length[1] + Length[2])){
+    
+    if (MatchIDs[i,1]!=MatchIDs[i-1,1]){
+      
+      studydiff=NewMaster[NewMaster[,"ID"]==MatchIDs[i,1] & NewMaster[,"DaysId"]==4, "OT.AM.Daily.Activity.Score"] - NewMaster[NewMaster[,"ID"]==MatchIDs[i,1] & NewMaster[,"DaysId"]==4, "Baseline Average.Activity"]
+      
+      controldiff=NewMaster[NewMaster[,"ID"]==MatchIDs[i,2] & NewMaster[,"DaysId"]==4, "OT.AM.Daily.Activity.Score"] - NewMaster[NewMaster[,"ID"]==MatchIDs[i,2] & NewMaster[,"DaysId"]==4, "Baseline Average.Activity"]
+      
+      test4data.Activity=c(test4data.Activity, studydiff-controldiff)
+      
+    }
+    
+  }
+  
+  if (MatchIDs[1,1]!=MatchIDs[2,1]){
+    
+    studydiff=NewMaster[NewMaster[,"ID"]==MatchIDs[1,1] & NewMaster[,"DaysId"]==4, "OT.AM.Daily.Activity.Score"] - NewMaster[NewMaster[,"ID"]==MatchIDs[1,1] & NewMaster[,"DaysId"]==1, "Baseline Average.Activity"]
+    
+    controldiff=NewMaster[NewMaster[,"ID"]==MatchIDs[1,2] & NewMaster[,"DaysId"]==4, "OT.AM.Daily.Activity.Score"] - NewMaster[NewMaster[,"ID"]==MatchIDs[1,2] & NewMaster[,"DaysId"]==1, "Baseline Average.Activity"]
+    
+    test4data.Activity=c(test4data.Activity, studydiff-controldiff)
+    
+    
+  }
+  
+  test4data.Activity=test4data.Activity[-1]
+  
+  result[2,4]=t.test(test4data.Activity, alternative="greater")$parameter + 1
+  
+  result[2,5]=t.test(test4data.Activity, alternative="greater")$p.value
+  
+  
+  ###conduct analysis for 4th day follow up for cognitive scores
+  
+  test4data.Cognitive=0
+  
+  for (i in (2 + Length[1] + Length[2]):(Length[1] + Length[2] + Length[3])){
+    
+    if (MatchIDs[i,1]!=MatchIDs[i-1,1]){
+      
+      studydiff=NewMaster[NewMaster[,"ID"]==MatchIDs[i,1] & NewMaster[,"DaysId"]==4, "ST.AM.Applied.Cogn.Score"] - NewMaster[NewMaster[,"ID"]==MatchIDs[i,1] & NewMaster[,"DaysId"]==4, "Baseline Average.Cognitive"]
+      
+      controldiff=NewMaster[NewMaster[,"ID"]==MatchIDs[i,2] & NewMaster[,"DaysId"]==4, "ST.AM.Applied.Cogn.Score"] - NewMaster[NewMaster[,"ID"]==MatchIDs[i,2] & NewMaster[,"DaysId"]==4, "Baseline Average.Cognitive"]
+      
+      test4data.Cognitive=c(test4data.Cognitive, studydiff-controldiff)
+      
+    }
+    
+  }
+  
+  if (MatchIDs[1,1]!=MatchIDs[2,1]){
+    
+    studydiff=NewMaster[NewMaster[,"ID"]==MatchIDs[1,1] & NewMaster[,"DaysId"]==4, "ST.AM.Applied.Cogn.Score"] - NewMaster[NewMaster[,"ID"]==MatchIDs[1,1] & NewMaster[,"DaysId"]==1, "Baseline Average.Cognitive"]
+    
+    controldiff=NewMaster[NewMaster[,"ID"]==MatchIDs[1,2] & NewMaster[,"DaysId"]==4, "ST.AM.Applied.Cogn.Score"] - NewMaster[NewMaster[,"ID"]==MatchIDs[1,2] & NewMaster[,"DaysId"]==1, "Baseline Average.Cognitive"]
+    
+    test4data.Cognitive=c(test4data.Cognitive, studydiff-controldiff)
+    
+    
+  }
+  
+  test4data.Cognitive=test4data.Cognitive[-1]
+  
+  result[3,4]=t.test(test4data.Cognitive, alternative="greater")$parameter + 1
+  
+  result[3,5]=t.test(test4data.Cognitive, alternative="greater")$p.value
+  
+  ###############################FIFTH FOLLOW UP###############################
+  
+  ###conduct analysis for 5th day follow up for mobility scores
+  
+  test5data.Mobility=0
+  
+  for (i in 2:Length[1]){
+    
+    if (MatchIDs[i,1]!=MatchIDs[i-1,1]){
+      
+      studydiff=NewMaster[NewMaster[,"ID"]==MatchIDs[i,1] & NewMaster[,"DaysId"]==5, "PT.AM.PAC.Basic.Mobility.Score"] - NewMaster[NewMaster[,"ID"]==MatchIDs[i,1] & NewMaster[,"DaysId"]==5, "Baseline Average.Mobility"]
+      
+      controldiff=NewMaster[NewMaster[,"ID"]==MatchIDs[i,2] & NewMaster[,"DaysId"]==5, "PT.AM.PAC.Basic.Mobility.Score"] - NewMaster[NewMaster[,"ID"]==MatchIDs[i,2] & NewMaster[,"DaysId"]==5, "Baseline Average.Mobility"]
+      
+      test5data.Mobility=c(test5data.Mobility, studydiff-controldiff)
+      
+    }
+    
+  }
+  
+  test5data.Mobility=test5data.Mobility[-1]
+  
+  result[4,4]=t.test(test5data.Mobility, alternative="greater")$parameter + 1
+  
+  result[4,5]=t.test(test5data.Mobility, alternative="greater")$p.value
+  
+  ###conduct analysis for 5th day follow up for activity scores
+  
+  test5data.Activity=0
+  
+  for (i in (2 + Length[1]):(Length[1] + Length[2])){
+    
+    if (MatchIDs[i,1]!=MatchIDs[i-1,1]){
+      
+      studydiff=NewMaster[NewMaster[,"ID"]==MatchIDs[i,1] & NewMaster[,"DaysId"]==5, "OT.AM.Daily.Activity.Score"] - NewMaster[NewMaster[,"ID"]==MatchIDs[i,1] & NewMaster[,"DaysId"]==5, "Baseline Average.Activity"]
+      
+      controldiff=NewMaster[NewMaster[,"ID"]==MatchIDs[i,2] & NewMaster[,"DaysId"]==5, "OT.AM.Daily.Activity.Score"] - NewMaster[NewMaster[,"ID"]==MatchIDs[i,2] & NewMaster[,"DaysId"]==5, "Baseline Average.Activity"]
+      
+      test5data.Activity=c(test5data.Activity, studydiff-controldiff)
+      
+    }
+    
+  }
+  
+  if (MatchIDs[1,1]!=MatchIDs[2,1]){
+    
+    studydiff=NewMaster[NewMaster[,"ID"]==MatchIDs[1,1] & NewMaster[,"DaysId"]==5, "OT.AM.Daily.Activity.Score"] - NewMaster[NewMaster[,"ID"]==MatchIDs[1,1] & NewMaster[,"DaysId"]==1, "Baseline Average.Activity"]
+    
+    controldiff=NewMaster[NewMaster[,"ID"]==MatchIDs[1,2] & NewMaster[,"DaysId"]==5, "OT.AM.Daily.Activity.Score"] - NewMaster[NewMaster[,"ID"]==MatchIDs[1,2] & NewMaster[,"DaysId"]==1, "Baseline Average.Activity"]
+    
+    test5data.Activity=c(test5data.Activity, studydiff-controldiff)
+    
+    
+  }
+  
+  test5data.Activity=test5data.Activity[-1]
+  
+  result[5,4]=t.test(test5data.Activity, alternative="greater")$parameter + 1
+  
+  result[5,5]=t.test(test5data.Activity, alternative="greater")$p.value
+  
+  ###conduct analysis for 5th day follow up for cognitive scores
+  
+  test5data.Cognitive=0
+  
+  for (i in (2 + Length[1] + Length[2]):(Length[1] + Length[2] + Length[3])){
+    
+    if (MatchIDs[i,1]!=MatchIDs[i-1,1]){
+      
+      studydiff=NewMaster[NewMaster[,"ID"]==MatchIDs[i,1] & NewMaster[,"DaysId"]==5, "ST.AM.Applied.Cogn.Score"] - NewMaster[NewMaster[,"ID"]==MatchIDs[i,1] & NewMaster[,"DaysId"]==5, "Baseline Average.Cognitive"]
+      
+      controldiff=NewMaster[NewMaster[,"ID"]==MatchIDs[i,2] & NewMaster[,"DaysId"]==5, "ST.AM.Applied.Cogn.Score"] - NewMaster[NewMaster[,"ID"]==MatchIDs[i,2] & NewMaster[,"DaysId"]==5, "Baseline Average.Cognitive"]
+      
+      test5data.Cognitive=c(test5data.Cognitive, studydiff-controldiff)
+      
+    }
+    
+  }
+  
+  if (MatchIDs[1,1]!=MatchIDs[2,1]){
+    
+    studydiff=NewMaster[NewMaster[,"ID"]==MatchIDs[1,1] & NewMaster[,"DaysId"]==5, "ST.AM.Applied.Cogn.Score"] - NewMaster[NewMaster[,"ID"]==MatchIDs[1,1] & NewMaster[,"DaysId"]==1, "Baseline Average.Cognitive"]
+    
+    controldiff=NewMaster[NewMaster[,"ID"]==MatchIDs[1,2] & NewMaster[,"DaysId"]==5, "ST.AM.Applied.Cogn.Score"] - NewMaster[NewMaster[,"ID"]==MatchIDs[1,2] & NewMaster[,"DaysId"]==1, "Baseline Average.Cognitive"]
+    
+    test5data.Cognitive=c(test5data.Cognitive, studydiff-controldiff)
+    
+    
+  }
+  
+  test5data.Cognitive=test5data.Cognitive[-1]
+  
+  result[6,4]=t.test(test5data.Cognitive, alternative="greater")$parameter + 1
+  
+  result[6,5]=t.test(test5data.Cognitive, alternative="greater")$p.value
+  
+  
+  ###############################SIXTH FOLLOW UP###############################
+  
+  ###conduct analysis for 6th day follow up for mobility scores
+  
+  test6data.Mobility=0
+  
+  for (i in 2:Length[1]){
+    
+    if (MatchIDs[i,1]!=MatchIDs[i-1,1]){
+      
+      studydiff=NewMaster[NewMaster[,"ID"]==MatchIDs[i,1] & NewMaster[,"DaysId"]==6, "PT.AM.PAC.Basic.Mobility.Score"] - NewMaster[NewMaster[,"ID"]==MatchIDs[i,1] & NewMaster[,"DaysId"]==6, "Baseline Average.Mobility"]
+      
+      controldiff=NewMaster[NewMaster[,"ID"]==MatchIDs[i,2] & NewMaster[,"DaysId"]==6, "PT.AM.PAC.Basic.Mobility.Score"] - NewMaster[NewMaster[,"ID"]==MatchIDs[i,2] & NewMaster[,"DaysId"]==6, "Baseline Average.Mobility"]
+      
+      test6data.Mobility=c(test6data.Mobility, studydiff-controldiff)
+      
+    }
+    
+  }
+  
+  if (MatchIDs[1,1]!=MatchIDs[2,1]){
+    
+    studydiff=NewMaster[NewMaster[,"ID"]==MatchIDs[1,1] & NewMaster[,"DaysId"]==6, "PT.AM.PAC.Basic.Mobility.Score"] - NewMaster[NewMaster[,"ID"]==MatchIDs[1,1] & NewMaster[,"DaysId"]==1, "Baseline Average.Mobility"]
+    
+    controldiff=NewMaster[NewMaster[,"ID"]==MatchIDs[1,2] & NewMaster[,"DaysId"]==6, "PT.AM.PAC.Basic.Mobility.Score"] - NewMaster[NewMaster[,"ID"]==MatchIDs[1,2] & NewMaster[,"DaysId"]==1, "Baseline Average.Mobility"]
+    
+    test6data.Mobility=c(test6data.Mobility, studydiff-controldiff)
+    
+    
+  }
+  
+  test6data.Mobility=test6data.Mobility[-1]
+  
+  result[7,4]=t.test(test6data.Mobility, alternative="greater")$parameter + 1
+  
+  result[7,5]=t.test(test6data.Mobility, alternative="greater")$p.value
+  
+  
+  ###conduct analysis for 6th day follow up for activity scores
+  
+  test6data.Activity=0
+  
+  for (i in (2 + Length[1]):(Length[1] + Length[2])){
+    
+    if (MatchIDs[i,1]!=MatchIDs[i-1,1]){
+      
+      studydiff=NewMaster[NewMaster[,"ID"]==MatchIDs[i,1] & NewMaster[,"DaysId"]==6, "OT.AM.Daily.Activity.Score"] - NewMaster[NewMaster[,"ID"]==MatchIDs[i,1] & NewMaster[,"DaysId"]==6, "Baseline Average.Activity"]
+      
+      controldiff=NewMaster[NewMaster[,"ID"]==MatchIDs[i,2] & NewMaster[,"DaysId"]==6, "OT.AM.Daily.Activity.Score"] - NewMaster[NewMaster[,"ID"]==MatchIDs[i,2] & NewMaster[,"DaysId"]==6, "Baseline Average.Activity"]
+      
+      test6data.Activity=c(test6data.Activity, studydiff-controldiff)
+      
+    }
+    
+  }
+  
+  if (MatchIDs[1,1]!=MatchIDs[2,1]){
+    
+    studydiff=NewMaster[NewMaster[,"ID"]==MatchIDs[1,1] & NewMaster[,"DaysId"]==6, "OT.AM.Daily.Activity.Score"] - NewMaster[NewMaster[,"ID"]==MatchIDs[1,1] & NewMaster[,"DaysId"]==1, "Baseline Average.Activity"]
+    
+    controldiff=NewMaster[NewMaster[,"ID"]==MatchIDs[1,2] & NewMaster[,"DaysId"]==6, "OT.AM.Daily.Activity.Score"] - NewMaster[NewMaster[,"ID"]==MatchIDs[1,2] & NewMaster[,"DaysId"]==1, "Baseline Average.Activity"]
+    
+    test6data.Activity=c(test6data.Activity, studydiff-controldiff)
+    
+    
+  }
+  
+  test6data.Activity=test6data.Activity[-1]
+  
+  result[8,4]=t.test(test6data.Activity, alternative="greater")$parameter + 1
+  
+  result[8,5]=t.test(test6data.Activity, alternative="greater")$p.value
+  
+  ###conduct analysis for 6th day follow up for cognitive scores
+  
+  test6data.Cognitive=0
+  
+  for (i in (2 + Length[1] + Length[2]):(Length[1] + Length[2] + Length[3])){
+    
+    if (MatchIDs[i,1]!=MatchIDs[i-1,1]){
+      
+      studydiff=NewMaster[NewMaster[,"ID"]==MatchIDs[i,1] & NewMaster[,"DaysId"]==6, "ST.AM.Applied.Cogn.Score"] - NewMaster[NewMaster[,"ID"]==MatchIDs[i,1] & NewMaster[,"DaysId"]==6, "Baseline Average.Cognitive"]
+      
+      controldiff=NewMaster[NewMaster[,"ID"]==MatchIDs[i,2] & NewMaster[,"DaysId"]==6, "ST.AM.Applied.Cogn.Score"] - NewMaster[NewMaster[,"ID"]==MatchIDs[i,2] & NewMaster[,"DaysId"]==6, "Baseline Average.Cognitive"]
+      
+      test6data.Cognitive=c(test6data.Cognitive, studydiff-controldiff)
+      
+    }
+    
+  }
+  
+  if (MatchIDs[1,1]!=MatchIDs[2,1]){
+    
+    studydiff=NewMaster[NewMaster[,"ID"]==MatchIDs[1,1] & NewMaster[,"DaysId"]==6, "ST.AM.Applied.Cogn.Score"] - NewMaster[NewMaster[,"ID"]==MatchIDs[1,1] & NewMaster[,"DaysId"]==1, "Baseline Average.Cognitive"]
+    
+    controldiff=NewMaster[NewMaster[,"ID"]==MatchIDs[1,2] & NewMaster[,"DaysId"]==6, "ST.AM.Applied.Cogn.Score"] - NewMaster[NewMaster[,"ID"]==MatchIDs[1,2] & NewMaster[,"DaysId"]==1, "Baseline Average.Cognitive"]
+    
+    test6data.Cognitive=c(test6data.Cognitive, studydiff-controldiff)
+    
+    
+  }
+  
+  test6data.Cognitive=test6data.Cognitive[-1]
+  
+  result[9,4]=t.test(test6data.Cognitive, alternative="greater")$parameter + 1
+  
+  result[9,5]=t.test(test6data.Cognitive, alternative="greater")$p.value
+  
+  return(result)
+  
+}
 
 
 ##############################INTERPOLATION##################################
@@ -679,348 +1060,455 @@ for (j in which(NewMaster.One[,"ID"]!=24 & NewMaster.One[,"ID"]!=46 & NewMaster.
   }
   
 }
+
+#####################################Function#######################################
+#Name: analysis.2                                                                  #
+#Author: Traymon Beavers                                                           #
+#Date Created: 4/2/2017                                                            #
+#Purpose: To conduct a paired t test for patients with IDs matched by the          #
+#         "matching" function; returns p-values for 4th, 5th, and 6th follow ups   #
+#         for each functional outcome; uses linear interpolation for missing       #
+#         follow ups                                                               #
+#Variables: MatchIDs-matrix containing ID matches created by "matching" function   #
+#                    for each functional outcome, concatenated by the rows;        #
+#                    mobility matches on top, activity matches in the middle, and  #
+#                    cognitive matches on the bottom                               #
+#           Length-vector of rows of mobility, activity, and cognitive ID matches  #
+#                  created by "matching" function, respectively                    #
+#           MatchConditions-label for the battery of t tests to be conducted       #
+####################################################################################
+
+
+analysis.2=function(MatchIDs=MatchIDs.5.20.6.75.All, Length=c(LengthM, LengthA, LengthC), 
+                  MatchConditions="5.20.6.75"){
+
+  ###############################FOURTH FOLLOW UP###############################
   
-View(Interpolate.Master[,c("ID", "DaysId", "PT.AM.PAC.Basic.Mobility.Score", "OT.AM.Daily.Activity.Score" ,"ST.AM.Applied.Cogn.Score")])
-View(NewMaster[,c("ID", "DaysId", "PT.AM.PAC.Basic.Mobility.Score", "OT.AM.Daily.Activity.Score" ,"ST.AM.Applied.Cogn.Score")])
-
-##############################MATCHING ANALYSIS##################################
-
-###match study group patients to control group patients who are the same gender and race, 
-###and are within 5 years of age and 20 baseline average points 
-
-MatchIDs.5.20.6.75.Mobility=matching(5,20,1,.6,.75)
-MatchIDs.5.20.6.75.Activity=matching(5,20,2,.6,.75)
-MatchIDs.5.20.6.75.Cognitive=matching(5,20,3,.6,.75)
-
-matching(5,20,1,.6,.75,0)
-matching(5,20,2,.6,.75,0)
-matching(5,20,3,.6,.75,0)
-
-
-###############################FOURTH FOLLOW UP###############################
-
-
-###conduct analysis for 4th day follow up for mobility scores
-
-test4data.Mobility=0
-
-for (i in 2:dim(MatchIDs.5.20.6.75.Mobility)[1]){
+  ###initialize matrix that will contain results of analysis
   
-  if (MatchIDs.5.20.6.75.Mobility[i,1]!=MatchIDs.5.20.6.75.Mobility[i-1,1]){
+  result=matrix(NA,9,5)
+  
+  colnames(result)=c("Match Condition", "Follow Up", "Score Type", "N", "P Value")
+  
+  result[,1]=rep(MatchConditions,9)
+  
+  result[,2]=c(rep(4,3), rep(5,3), rep(6,3))
+  
+  result[,3]=rep(c("Mobility", "Activity", "Cognitive"),3)
+  
+  ###conduct analysis for 4th day follow up for mobility scores
+  
+  test4data.Mobility=0
+  
+  for (i in 2:Length[1]){
     
-    studydiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Mobility[i,1] & Interpolate.Master[,"DaysId"]==4, "PT.AM.PAC.Basic.Mobility.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Mobility[i,1] & Interpolate.Master[,"DaysId"]==4, "Baseline Average.Mobility"]
+    if (MatchIDs[i,1]!=MatchIDs[i-1,1]){
+      
+      studydiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[i,1] & Interpolate.Master[,"DaysId"]==4, "PT.AM.PAC.Basic.Mobility.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[i,1] & Interpolate.Master[,"DaysId"]==4, "Baseline Average.Mobility"]
+      
+      controldiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[i,2] & Interpolate.Master[,"DaysId"]==4, "PT.AM.PAC.Basic.Mobility.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[i,2] & Interpolate.Master[,"DaysId"]==4, "Baseline Average.Mobility"]
+      
+      test4data.Mobility=c(test4data.Mobility, studydiff-controldiff)
+      
+    }
+  
+  }
+  
+  if (MatchIDs[i,1]!=MatchIDs[i-1,1]){
     
-    controldiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Mobility[i,2] & Interpolate.Master[,"DaysId"]==4, "PT.AM.PAC.Basic.Mobility.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Mobility[i,2] & Interpolate.Master[,"DaysId"]==4, "Baseline Average.Mobility"]
+    studydiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[i,1] & Interpolate.Master[,"DaysId"]==4, "PT.AM.PAC.Basic.Mobility.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[i,1] & Interpolate.Master[,"DaysId"]==5, "Baseline Average.Mobility"]
+    
+    controldiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[i,2] & Interpolate.Master[,"DaysId"]==4, "PT.AM.PAC.Basic.Mobility.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[i,2] & Interpolate.Master[,"DaysId"]==5, "Baseline Average.Mobility"]
     
     test4data.Mobility=c(test4data.Mobility, studydiff-controldiff)
     
   }
   
-}
-
-if (MatchIDs.5.20.6.75.Mobility[1,1]!=MatchIDs.5.20.6.75.Mobility[2,1]){
+  test4data.Mobility=test4data.Mobility[-1]
   
-  studydiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Mobility[i,1] & Interpolate.Master[,"DaysId"]==4, "PT.AM.PAC.Basic.Mobility.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Mobility[i,1] & Interpolate.Master[,"DaysId"]==4, "Baseline Average.Mobility"]
+  result[1,4]=t.test(test4data.Mobility, alternative="greater")$parameter + 1
   
-  controldiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Mobility[i,2] & Interpolate.Master[,"DaysId"]==4, "PT.AM.PAC.Basic.Mobility.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Mobility[i,2] & Interpolate.Master[,"DaysId"]==4, "Baseline Average.Mobility"]
+  result[1,5]=t.test(test4data.Mobility, alternative="greater")$p.value
   
-  test4data.Mobility=c(test4data.Mobility, studydiff-controldiff)
+  ###conduct analysis for 4th day follow up for activity scores
   
-}
-
-test4data.Mobility=test4data.Mobility[-1]
-
-t.test(test4data.Mobility, alternative="greater")
-
-###conduct analysis for 4th day follow up for activity scores
-
-test4data.Activity=0
-
-for (i in 2:dim(MatchIDs.5.20.6.75.Activity)[1]){
+  test4data.Activity=0
   
-  if (MatchIDs.5.20.6.75.Activity[i,1]!=MatchIDs.5.20.6.75.Activity[i-1,1]){
+  for (i in (2 + Length[1]):(Length[1] + Length[2])){
     
-    studydiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Activity[i,1] & Interpolate.Master[,"DaysId"]==4, "OT.AM.Daily.Activity.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Activity[i,1] & Interpolate.Master[,"DaysId"]==4, "Baseline Average.Activity"]
+    if (MatchIDs[i,1]!=MatchIDs[i-1,1]){
+      
+      studydiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[i,1] & Interpolate.Master[,"DaysId"]==4, "OT.AM.Daily.Activity.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[i,1] & Interpolate.Master[,"DaysId"]==4, "Baseline Average.Activity"]
+      
+      controldiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[i,2] & Interpolate.Master[,"DaysId"]==4, "OT.AM.Daily.Activity.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[i,2] & Interpolate.Master[,"DaysId"]==4, "Baseline Average.Activity"]
+      
+      test4data.Activity=c(test4data.Activity, studydiff-controldiff)
+      
+    }
     
-    controldiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Activity[i,2] & Interpolate.Master[,"DaysId"]==4, "OT.AM.Daily.Activity.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Activity[i,2] & Interpolate.Master[,"DaysId"]==4, "Baseline Average.Activity"]
+  }
+  
+  if (MatchIDs[1,1]!=MatchIDs[2,1]){
+    
+    studydiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[1,1] & Interpolate.Master[,"DaysId"]==4, "OT.AM.Daily.Activity.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[1,1] & Interpolate.Master[,"DaysId"]==1, "Baseline Average.Activity"]
+    
+    controldiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[1,2] & Interpolate.Master[,"DaysId"]==4, "OT.AM.Daily.Activity.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[1,2] & Interpolate.Master[,"DaysId"]==1, "Baseline Average.Activity"]
     
     test4data.Activity=c(test4data.Activity, studydiff-controldiff)
     
+    
   }
   
-}
-
-if (MatchIDs.5.20.6.75.Activity[1,1]!=MatchIDs.5.20.6.75.Activity[2,1]){
+  test4data.Activity=test4data.Activity[-1]
   
-  studydiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Activity[i,1] & Interpolate.Master[,"DaysId"]==4, "OT.AM.Daily.Activity.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Activity[i,1] & Interpolate.Master[,"DaysId"]==4, "Baseline Average.Activity"]
+  result[2,4]=t.test(test4data.Activity, alternative="greater")$parameter + 1
   
-  controldiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Activity[i,2] & Interpolate.Master[,"DaysId"]==4, "OT.AM.Daily.Activity.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Activity[i,2] & Interpolate.Master[,"DaysId"]==4, "Baseline Average.Activity"]
+  result[2,5]=t.test(test4data.Activity, alternative="greater")$p.value
   
-  test4data.Activity=c(test4data.Activity, studydiff-controldiff)
   
-}
-
-test4data.Activity=test4data.Activity[-1]
-
-t.test(test4data.Activity, alternative="greater")
-
-###conduct analysis for 4th day follow up for cognitive scores
-
-test4data.Cognitive=0
-
-for (i in 2:dim(MatchIDs.5.20.6.75.Cognitive)[1]){
+  ###conduct analysis for 4th day follow up for cognitive scores
   
-  if (MatchIDs.5.20.6.75.Cognitive[i,1]!=MatchIDs.5.20.6.75.Cognitive[i-1,1]){
+  test4data.Cognitive=0
+  
+  for (i in (2 + Length[1] + Length[2]):(Length[1] + Length[2] + Length[3])){
     
-    studydiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Cognitive[i,1] & Interpolate.Master[,"DaysId"]==4, "ST.AM.Applied.Cogn.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Cognitive[i,1] & Interpolate.Master[,"DaysId"]==4, "Baseline Average.Cognitive"]
+    if (MatchIDs[i,1]!=MatchIDs[i-1,1]){
+      
+      studydiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[i,1] & Interpolate.Master[,"DaysId"]==4, "ST.AM.Applied.Cogn.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[i,1] & Interpolate.Master[,"DaysId"]==4, "Baseline Average.Cognitive"]
+      
+      controldiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[i,2] & Interpolate.Master[,"DaysId"]==4, "ST.AM.Applied.Cogn.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[i,2] & Interpolate.Master[,"DaysId"]==4, "Baseline Average.Cognitive"]
+      
+      test4data.Cognitive=c(test4data.Cognitive, studydiff-controldiff)
+      
+    }
     
-    controldiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Cognitive[i,2] & Interpolate.Master[,"DaysId"]==4, "ST.AM.Applied.Cogn.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Cognitive[i,2] & Interpolate.Master[,"DaysId"]==4, "Baseline Average.Cognitive"]
+  }
+  
+  if (MatchIDs[1,1]!=MatchIDs[2,1]){
+    
+    studydiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[1,1] & Interpolate.Master[,"DaysId"]==4, "ST.AM.Applied.Cogn.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[1,1] & Interpolate.Master[,"DaysId"]==1, "Baseline Average.Cognitive"]
+    
+    controldiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[1,2] & Interpolate.Master[,"DaysId"]==4, "ST.AM.Applied.Cogn.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[1,2] & Interpolate.Master[,"DaysId"]==1, "Baseline Average.Cognitive"]
     
     test4data.Cognitive=c(test4data.Cognitive, studydiff-controldiff)
     
-  }
-  
-}
-
-if (MatchIDs.5.20.6.75.Cognitive[1,1]!=MatchIDs.5.20.6.75.Cognitive[2,1]){
-  
-  studydiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Cognitive[1,1] & Interpolate.Master[,"DaysId"]==4, "ST.AM.Applied.Cogn.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Cognitive[1,1] & Interpolate.Master[,"DaysId"]==4, "Baseline Average.Cognitive"]
-  
-  controldiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Cognitive[1,2] & Interpolate.Master[,"DaysId"]==4, "ST.AM.Applied.Cogn.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Cognitive[1,2] & Interpolate.Master[,"DaysId"]==4, "Baseline Average.Cognitive"]
-  
-  test4data.Cognitive=c(test4data.Cognitive, studydiff-controldiff)
-  
-  
-}
-
-test4data.Cognitive=test4data.Cognitive[-1]
-
-t.test(test4data.Cognitive, alternative="greater")
-
-###############################FIFTH FOLLOW UP###############################
-
-
-###conduct analysis for 5th day follow up for mobility scores
-
-test5data.Mobility=0
-
-for (i in 2:dim(MatchIDs.5.20.6.75.Mobility)[1]){
-  
-  if (MatchIDs.5.20.6.75.Mobility[i,1]!=MatchIDs.5.20.6.75.Mobility[i-1,1]){
-    
-    studydiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Mobility[i,1] & Interpolate.Master[,"DaysId"]==5, "PT.AM.PAC.Basic.Mobility.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Mobility[i,1] & Interpolate.Master[,"DaysId"]==1, "Baseline Average.Mobility"]
-    
-    controldiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Mobility[i,2] & Interpolate.Master[,"DaysId"]==5, "PT.AM.PAC.Basic.Mobility.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Mobility[i,2] & Interpolate.Master[,"DaysId"]==1, "Baseline Average.Mobility"]
-    
-    test5data.Mobility=c(test5data.Mobility, studydiff-controldiff)
     
   }
   
-}
-
-if (MatchIDs.5.20.6.75.Mobility[1,1]!=MatchIDs.5.20.6.75.Mobility[2,1]){
+  test4data.Cognitive=test4data.Cognitive[-1]
   
-  studydiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Mobility[i,1] & Interpolate.Master[,"DaysId"]==5, "PT.AM.PAC.Basic.Mobility.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Mobility[i,1] & Interpolate.Master[,"DaysId"]==1, "Baseline Average.Mobility"]
+  result[3,4]=t.test(test4data.Cognitive, alternative="greater")$parameter + 1
   
-  controldiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Mobility[i,2] & Interpolate.Master[,"DaysId"]==5, "PT.AM.PAC.Basic.Mobility.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Mobility[i,2] & Interpolate.Master[,"DaysId"]==5, "Baseline Average.Mobility"]
+  result[3,5]=t.test(test4data.Cognitive, alternative="greater")$p.value
   
-  test5data.Mobility=c(test5data.Mobility, studydiff-controldiff)
+  ###############################FIFTH FOLLOW UP###############################
   
-}
-
-test5data.Mobility=test5data.Mobility[-1]
-
-t.test(test5data.Mobility, alternative="greater")
-
-###conduct analysis for 5th day follow up for activity scores
-
-test5data.Activity=0
-
-for (i in 2:dim(MatchIDs.5.20.6.75.Activity)[1]){
+  ###conduct analysis for 5th day follow up for mobility scores
   
-  if (MatchIDs.5.20.6.75.Activity[i,1]!=MatchIDs.5.20.6.75.Activity[i-1,1]){
+  test5data.Mobility=0
+  
+  for (i in 2:Length[1]){
     
-    studydiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Activity[i,1] & Interpolate.Master[,"DaysId"]==5, "OT.AM.Daily.Activity.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Activity[i,1] & Interpolate.Master[,"DaysId"]==1, "Baseline Average.Activity"]
+    if (MatchIDs[i,1]!=MatchIDs[i-1,1]){
+      
+      studydiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[i,1] & Interpolate.Master[,"DaysId"]==5, "PT.AM.PAC.Basic.Mobility.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[i,1] & Interpolate.Master[,"DaysId"]==5, "Baseline Average.Mobility"]
+      
+      controldiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[i,2] & Interpolate.Master[,"DaysId"]==5, "PT.AM.PAC.Basic.Mobility.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[i,2] & Interpolate.Master[,"DaysId"]==5, "Baseline Average.Mobility"]
+      
+      test5data.Mobility=c(test5data.Mobility, studydiff-controldiff)
+      
+    }
     
-    controldiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Activity[i,2] & Interpolate.Master[,"DaysId"]==5, "OT.AM.Daily.Activity.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Activity[i,2] & Interpolate.Master[,"DaysId"]==1, "Baseline Average.Activity"]
+  }
+  
+  test5data.Mobility=test5data.Mobility[-1]
+  
+  result[4,4]=t.test(test5data.Mobility, alternative="greater")$parameter + 1
+  
+  result[4,5]=t.test(test5data.Mobility, alternative="greater")$p.value
+  
+  ###conduct analysis for 5th day follow up for activity scores
+  
+  test5data.Activity=0
+  
+  for (i in (2 + Length[1]):(Length[1] + Length[2])){
+    
+    if (MatchIDs[i,1]!=MatchIDs[i-1,1]){
+      
+      studydiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[i,1] & Interpolate.Master[,"DaysId"]==5, "OT.AM.Daily.Activity.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[i,1] & Interpolate.Master[,"DaysId"]==5, "Baseline Average.Activity"]
+      
+      controldiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[i,2] & Interpolate.Master[,"DaysId"]==5, "OT.AM.Daily.Activity.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[i,2] & Interpolate.Master[,"DaysId"]==5, "Baseline Average.Activity"]
+      
+      test5data.Activity=c(test5data.Activity, studydiff-controldiff)
+      
+    }
+    
+  }
+  
+  if (MatchIDs[1,1]!=MatchIDs[2,1]){
+    
+    studydiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[1,1] & Interpolate.Master[,"DaysId"]==5, "OT.AM.Daily.Activity.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[1,1] & Interpolate.Master[,"DaysId"]==1, "Baseline Average.Activity"]
+    
+    controldiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[1,2] & Interpolate.Master[,"DaysId"]==5, "OT.AM.Daily.Activity.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[1,2] & Interpolate.Master[,"DaysId"]==1, "Baseline Average.Activity"]
     
     test5data.Activity=c(test5data.Activity, studydiff-controldiff)
     
+    
   }
   
-}
-
-if (MatchIDs.5.20.6.75.Activity[1,1]!=MatchIDs.5.20.6.75.Activity[2,1]){
+  test5data.Activity=test5data.Activity[-1]
   
-  studydiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Activity[i,1] & Interpolate.Master[,"DaysId"]==5, "OT.AM.Daily.Activity.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Activity[i,1] & Interpolate.Master[,"DaysId"]==1, "Baseline Average.Activity"]
+  result[5,4]=t.test(test5data.Activity, alternative="greater")$parameter + 1
   
-  controldiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Activity[i,2] & Interpolate.Master[,"DaysId"]==5, "OT.AM.Daily.Activity.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Activity[i,2] & Interpolate.Master[,"DaysId"]==1, "Baseline Average.Activity"]
+  result[5,5]=t.test(test5data.Activity, alternative="greater")$p.value
   
-  test5data.Activity=c(test5data.Activity, studydiff-controldiff)
+  ###conduct analysis for 5th day follow up for cognitive scores
   
-}
-
-test5data.Activity=test5data.Activity[-1]
-
-t.test(test5data.Activity, alternative="greater")
-
-###conduct analysis for 5th day follow up for cognitive scores
-
-test5data.Cognitive=0
-
-for (i in 2:dim(MatchIDs.5.20.6.75.Cognitive)[1]){
+  test5data.Cognitive=0
   
-  if (MatchIDs.5.20.6.75.Cognitive[i,1]!=MatchIDs.5.20.6.75.Cognitive[i-1,1]){
+  for (i in (2 + Length[1] + Length[2]):(Length[1] + Length[2] + Length[3])){
     
-    studydiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Cognitive[i,1] & Interpolate.Master[,"DaysId"]==5, "ST.AM.Applied.Cogn.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Cognitive[i,1] & Interpolate.Master[,"DaysId"]==1, "Baseline Average.Cognitive"]
+    if (MatchIDs[i,1]!=MatchIDs[i-1,1]){
+      
+      studydiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[i,1] & Interpolate.Master[,"DaysId"]==5, "ST.AM.Applied.Cogn.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[i,1] & Interpolate.Master[,"DaysId"]==5, "Baseline Average.Cognitive"]
+      
+      controldiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[i,2] & Interpolate.Master[,"DaysId"]==5, "ST.AM.Applied.Cogn.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[i,2] & Interpolate.Master[,"DaysId"]==5, "Baseline Average.Cognitive"]
+      
+      test5data.Cognitive=c(test5data.Cognitive, studydiff-controldiff)
+      
+    }
     
-    controldiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Cognitive[i,2] & Interpolate.Master[,"DaysId"]==5, "ST.AM.Applied.Cogn.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Cognitive[i,2] & Interpolate.Master[,"DaysId"]==1, "Baseline Average.Cognitive"]
+  }
+  
+  if (MatchIDs[1,1]!=MatchIDs[2,1]){
+    
+    studydiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[1,1] & Interpolate.Master[,"DaysId"]==5, "ST.AM.Applied.Cogn.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[1,1] & Interpolate.Master[,"DaysId"]==1, "Baseline Average.Cognitive"]
+    
+    controldiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[1,2] & Interpolate.Master[,"DaysId"]==5, "ST.AM.Applied.Cogn.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[1,2] & Interpolate.Master[,"DaysId"]==1, "Baseline Average.Cognitive"]
     
     test5data.Cognitive=c(test5data.Cognitive, studydiff-controldiff)
     
+    
   }
   
-}
-
-if (MatchIDs.5.20.6.75.Cognitive[1,1]!=MatchIDs.5.20.6.75.Cognitive[2,1]){
+  test5data.Cognitive=test5data.Cognitive[-1]
   
-  studydiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Cognitive[1,1] & Interpolate.Master[,"DaysId"]==5, "ST.AM.Applied.Cogn.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Cognitive[1,1] & Interpolate.Master[,"DaysId"]==1, "Baseline Average.Cognitive"]
+  result[6,4]=t.test(test5data.Cognitive, alternative="greater")$parameter + 1
   
-  controldiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Cognitive[1,2] & Interpolate.Master[,"DaysId"]==5, "ST.AM.Applied.Cogn.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Cognitive[1,2] & Interpolate.Master[,"DaysId"]==1, "Baseline Average.Cognitive"]
-  
-  test5data.Cognitive=c(test5data.Cognitive, studydiff-controldiff)
+  result[6,5]=t.test(test5data.Cognitive, alternative="greater")$p.value
   
   
-}
-
-test5data.Cognitive=test5data.Cognitive[-1]
-
-t.test(test5data.Cognitive, alternative="greater")
-
-###############################SIXTH FOLLOW UP###############################
-
-###conduct analysis for 6th day follow up for mobility scores
-
-test6data.Mobility=0
-
-for (i in 2:dim(MatchIDs.5.20.6.75.Mobility)[1]){
+  ###############################SIXTH FOLLOW UP###############################
   
-  if (MatchIDs.5.20.6.75.Mobility[i,1]!=MatchIDs.5.20.6.75.Mobility[i-1,1]){
+  ###conduct analysis for 6th day follow up for mobility scores
+  
+  test6data.Mobility=0
+  
+  for (i in 2:Length[1]){
     
-    studydiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Mobility[i,1] & Interpolate.Master[,"DaysId"]==6, "PT.AM.PAC.Basic.Mobility.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Mobility[i,1] & Interpolate.Master[,"DaysId"]==1, "Baseline Average.Mobility"]
+    if (MatchIDs[i,1]!=MatchIDs[i-1,1]){
+      
+      studydiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[i,1] & Interpolate.Master[,"DaysId"]==6, "PT.AM.PAC.Basic.Mobility.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[i,1] & Interpolate.Master[,"DaysId"]==6, "Baseline Average.Mobility"]
+      
+      controldiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[i,2] & Interpolate.Master[,"DaysId"]==6, "PT.AM.PAC.Basic.Mobility.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[i,2] & Interpolate.Master[,"DaysId"]==6, "Baseline Average.Mobility"]
+      
+      test6data.Mobility=c(test6data.Mobility, studydiff-controldiff)
+      
+    }
     
-    controldiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Mobility[i,2] & Interpolate.Master[,"DaysId"]==6, "PT.AM.PAC.Basic.Mobility.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Mobility[i,2] & Interpolate.Master[,"DaysId"]==1, "Baseline Average.Mobility"]
+  }
+  
+  if (MatchIDs[1,1]!=MatchIDs[2,1]){
+    
+    studydiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[1,1] & Interpolate.Master[,"DaysId"]==6, "PT.AM.PAC.Basic.Mobility.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[1,1] & Interpolate.Master[,"DaysId"]==1, "Baseline Average.Mobility"]
+    
+    controldiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[1,2] & Interpolate.Master[,"DaysId"]==6, "PT.AM.PAC.Basic.Mobility.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[1,2] & Interpolate.Master[,"DaysId"]==1, "Baseline Average.Mobility"]
     
     test6data.Mobility=c(test6data.Mobility, studydiff-controldiff)
     
+    
   }
   
-}
-
-if (MatchIDs.5.20.6.75.Mobility[1,1]!=MatchIDs.5.20.6.75.Mobility[2,1]){
+  test6data.Mobility=test6data.Mobility[-1]
   
-  studydiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Mobility[i,1] & Interpolate.Master[,"DaysId"]==6, "PT.AM.PAC.Basic.Mobility.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Mobility[i,1] & Interpolate.Master[,"DaysId"]==1, "Baseline Average.Mobility"]
+  result[7,4]=t.test(test6data.Mobility, alternative="greater")$parameter + 1
   
-  controldiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Mobility[i,2] & Interpolate.Master[,"DaysId"]==6, "PT.AM.PAC.Basic.Mobility.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Mobility[i,2] & Interpolate.Master[,"DaysId"]==1, "Baseline Average.Mobility"]
+  result[7,5]=t.test(test6data.Mobility, alternative="greater")$p.value
   
-  test6data.Mobility=c(test6data.Mobility, studydiff-controldiff)
   
-}
-
-test6data.Mobility=test6data.Mobility[-1]
-
-t.test(test6data.Mobility, alternative="greater")
-
-###conduct analysis for 6th day follow up for activity scores
-
-test6data.Activity=0
-
-for (i in 2:dim(MatchIDs.5.20.6.75.Activity)[1]){
+  ###conduct analysis for 6th day follow up for activity scores
   
-  if (MatchIDs.5.20.6.75.Activity[i,1]!=MatchIDs.5.20.6.75.Activity[i-1,1]){
+  test6data.Activity=0
+  
+  for (i in (2 + Length[1]):(Length[1] + Length[2])){
     
-    studydiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Activity[i,1] & Interpolate.Master[,"DaysId"]==6, "OT.AM.Daily.Activity.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Activity[i,1] & Interpolate.Master[,"DaysId"]==1, "Baseline Average.Activity"]
+    if (MatchIDs[i,1]!=MatchIDs[i-1,1]){
+      
+      studydiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[i,1] & Interpolate.Master[,"DaysId"]==6, "OT.AM.Daily.Activity.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[i,1] & Interpolate.Master[,"DaysId"]==6, "Baseline Average.Activity"]
+      
+      controldiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[i,2] & Interpolate.Master[,"DaysId"]==6, "OT.AM.Daily.Activity.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[i,2] & Interpolate.Master[,"DaysId"]==6, "Baseline Average.Activity"]
+      
+      test6data.Activity=c(test6data.Activity, studydiff-controldiff)
+      
+    }
     
-    controldiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Activity[i,2] & Interpolate.Master[,"DaysId"]==6, "OT.AM.Daily.Activity.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Activity[i,2] & Interpolate.Master[,"DaysId"]==6, "Baseline Average.Activity"]
+  }
+  
+  if (MatchIDs[1,1]!=MatchIDs[2,1]){
+    
+    studydiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[1,1] & Interpolate.Master[,"DaysId"]==6, "OT.AM.Daily.Activity.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[1,1] & Interpolate.Master[,"DaysId"]==1, "Baseline Average.Activity"]
+    
+    controldiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[1,2] & Interpolate.Master[,"DaysId"]==6, "OT.AM.Daily.Activity.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[1,2] & Interpolate.Master[,"DaysId"]==1, "Baseline Average.Activity"]
     
     test6data.Activity=c(test6data.Activity, studydiff-controldiff)
     
+    
   }
   
-}
-
-if (MatchIDs.5.20.6.75.Activity[1,1]!=MatchIDs.5.20.6.75.Activity[2,1]){
+  test6data.Activity=test6data.Activity[-1]
   
-  studydiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Activity[i,1] & Interpolate.Master[,"DaysId"]==6, "OT.AM.Daily.Activity.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Activity[i,1] & Interpolate.Master[,"DaysId"]==1, "Baseline Average.Activity"]
+  result[8,4]=t.test(test6data.Activity, alternative="greater")$parameter + 1
   
-  controldiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Activity[i,2] & Interpolate.Master[,"DaysId"]==6, "OT.AM.Daily.Activity.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Activity[i,2] & Interpolate.Master[,"DaysId"]==1, "Baseline Average.Activity"]
+  result[8,5]=t.test(test6data.Activity, alternative="greater")$p.value
   
-  test6data.Activity=c(test6data.Activity, studydiff-controldiff)
+  ###conduct analysis for 6th day follow up for cognitive scores
   
-}
-
-test6data.Activity=test6data.Activity[-1]
-
-t.test(test6data.Activity, alternative="greater")
-
-###conduct analysis for 6th day follow up for cognitive scores
-
-test6data.Cognitive=0
-
-for (i in 2:dim(MatchIDs.5.20.6.75.Cognitive)[1]){
+  test6data.Cognitive=0
   
-  if (MatchIDs.5.20.6.75.Cognitive[i,1]!=MatchIDs.5.20.6.75.Cognitive[i-1,1]){
+  for (i in (2 + Length[1] + Length[2]):(Length[1] + Length[2] + Length[3])){
     
-    studydiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Cognitive[i,1] & Interpolate.Master[,"DaysId"]==6, "ST.AM.Applied.Cogn.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Cognitive[i,1] & Interpolate.Master[,"DaysId"]==1, "Baseline Average.Cognitive"]
+    if (MatchIDs[i,1]!=MatchIDs[i-1,1]){
+      
+      studydiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[i,1] & Interpolate.Master[,"DaysId"]==6, "ST.AM.Applied.Cogn.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[i,1] & Interpolate.Master[,"DaysId"]==6, "Baseline Average.Cognitive"]
+      
+      controldiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[i,2] & Interpolate.Master[,"DaysId"]==6, "ST.AM.Applied.Cogn.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[i,2] & Interpolate.Master[,"DaysId"]==6, "Baseline Average.Cognitive"]
+      
+      test6data.Cognitive=c(test6data.Cognitive, studydiff-controldiff)
+      
+    }
     
-    controldiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Cognitive[i,2] & Interpolate.Master[,"DaysId"]==6, "ST.AM.Applied.Cogn.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Cognitive[i,2] & Interpolate.Master[,"DaysId"]==1, "Baseline Average.Cognitive"]
+  }
+  
+  if (MatchIDs[1,1]!=MatchIDs[2,1]){
+    
+    studydiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[1,1] & Interpolate.Master[,"DaysId"]==6, "ST.AM.Applied.Cogn.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[1,1] & Interpolate.Master[,"DaysId"]==1, "Baseline Average.Cognitive"]
+    
+    controldiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[1,2] & Interpolate.Master[,"DaysId"]==6, "ST.AM.Applied.Cogn.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs[1,2] & Interpolate.Master[,"DaysId"]==1, "Baseline Average.Cognitive"]
     
     test6data.Cognitive=c(test6data.Cognitive, studydiff-controldiff)
     
+    
   }
   
-}
-
-if (MatchIDs.5.20.6.75.Cognitive[1,1]!=MatchIDs.5.20.6.75.Cognitive[2,1]){
+  test6data.Cognitive=test6data.Cognitive[-1]
   
-  studydiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Cognitive[1,1] & Interpolate.Master[,"DaysId"]==6, "ST.AM.Applied.Cogn.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Cognitive[1,1] & Interpolate.Master[,"DaysId"]==1, "Baseline Average.Cognitive"]
+  result[9,4]=t.test(test6data.Cognitive, alternative="greater")$parameter + 1
   
-  controldiff=Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Cognitive[1,2] & Interpolate.Master[,"DaysId"]==6, "ST.AM.Applied.Cogn.Score"] - Interpolate.Master[Interpolate.Master[,"ID"]==MatchIDs.5.20.6.75.Cognitive[1,2] & Interpolate.Master[,"DaysId"]==1, "Baseline Average.Cognitive"]
+  result[9,5]=t.test(test6data.Cognitive, alternative="greater")$p.value
   
-  test6data.Cognitive=c(test6data.Cognitive, studydiff-controldiff)
-  
+  return(result)
   
 }
 
-test6data.Cognitive=test6data.Cognitive[-1]
-
-t.test(test6data.Cognitive, alternative="greater")
-
-############################ANALYSIS OF PATIENT OUTCOMES############################
+#################################End Function#######################################
 
 
+##########################ANALYSIS OF CONTINUOUS PATIENT OUTCOMES##########################
+
+
+###match study group patients to control group patients who are the same gender and race, and
+###place matched IDs in matrix MatchIDs.n.m.x.y, encoded as follows: age matched within n years,
+###baseline average matched within m points, propensity scores matched within .x, and mahalanobis
+###distance is within the .y quantile (if x and/or y is 1, then matching with propensity scores
+###and mahalanobis distance was not utilized) and then conduct analysis with paired t test
+###with analysis function
+
+MatchIDs.5.20.75.75.Mobility=matching(5,20,1,.75,.75)
+MatchIDs.5.20.75.75.Activity=matching(5,20,2,.75,.75)
+MatchIDs.5.20.75.75.Cognitive=matching(5,20,3,.75,.75)
+
+MatchIDs.5.20.75.75.All=rbind(MatchIDs.5.20.75.75.Mobility, 
+                             MatchIDs.5.20.75.75.Activity, 
+                             MatchIDs.5.20.75.75.Cognitive)
+
+LengthM=dim(MatchIDs.5.20.75.75.Mobility)[1]
+LengthA=dim(MatchIDs.5.20.75.75.Activity)[1]
+LengthC=dim(MatchIDs.5.20.75.75.Cognitive)[1]
+
+analysis.1(MatchIDs=MatchIDs.5.20.75.75.All, MatchConditions="5.20.75.75")
+
+analysis.2(MatchIDs=MatchIDs.5.20.75.75.All, MatchConditions="5.20.75.75")
+
+  
+###count the number of distinct study group matches for reference
+
+matching(5,20,1,.75,.75,0)
+matching(5,20,2,.75,.75,0)
+matching(5,20,3,.75,.75,0)
 
 
 
 
-##########################MULTIVARIATE ANALYSIS############################
+##########################ANALYSIS OF BINARY PATIENT OUTCOMES##########################
+
+#rename treatment groups as numbers
+
+NewMaster.One[,"GroupNum"]=rep(NA,119)
+
+NewMaster.One[NewMaster.One[,"Group"]=="Study Group", "GroupNum"]=0
+
+NewMaster.One[NewMaster.One[,"Group"]=="Control Group", "GroupNum"]=1
+
 
 #all cause hospital readmission rate
 
 #rate of recurrent cerebrovascular accident
 
+###Demonstrate that the answer is no for every patient so clearly there is no relationship
+###between the study group and decreasing either rate
+#View(NewMaster.One[,c("Group", "GroupNum", "Been.Hospitalised.since.stroke", "Hospitalized.Reason")])
+
+
 #all cause rate of mortality
 
-colnames(NewMaster.One)
+###List of deceased patient ID numbers
+#27  48  51  52  75 100 101 112 115
 
-glm.out=glm(formula=Deceased_Y.N ~ Group, family=binomial(logit),
-            data=NewMaster.One[,c("Group", "Deceased_Y.N")])
+word=matching(5,100,1,1,1,1)
 
-names(glm.out)
+word[word[,"Control ID"]==27 |
+       word[,"Control ID"]==48 | 
+       word[,"Control ID"]==51 |
+       word[,"Control ID"]==52 |
+       word[,"Control ID"]==75 |
+       word[,"Control ID"]==100 |
+       word[,"Control ID"]==101 |
+       word[,"Control ID"]==112 |
+       word[,"Control ID"]==115, ]
 
-glm.out
+matching(5,100,1,1,1,0)
 
-glm.out$fitted.values
+forglmIDs=unique(c(word))
+
+forglm=NewMaster.One[NewMaster.One[,"ID"]==forglmIDs[1],]
+
+for (i in 2:48){
+  
+  forglm=rbind(forglm, NewMaster.One[NewMaster.One[,"ID"]==forglmIDs[i],])  
+  
+}
+
+glm.out=glm(formula=Deceased_Y.N ~ GroupNum, family=binomial(logit),
+            data=NewMaster.One[NewMaster.One[,"Gender"]=="Female",c("GroupNum", "Deceased_Y.N")])
+
+anova(glm.out, test="Chisq")
+
+View(NewMaster.One[,c("ID", "Gender")])
+
+
+
+##########################MULTIVARIATE ANALYSIS############################
+
 
 ###############################CORRELATIONS###############################
 
@@ -1042,11 +1530,15 @@ cor(NewMaster[NewMaster[,"DaysId"]==6,ScoreVarName], use = "pairwise.complete.ob
 
 cor(NewMaster[NewMaster[,"DaysId"]==7,ScoreVarName], use = "pairwise.complete.obs")
 
+###correlations between stroke severity number and baseline average of functional outcomes
+
+cor(NewMaster.One[is.na(NewMaster.One["NewSSN"])==0,c("Baseline Average.Mobility", "Baseline Average.Activity", "Baseline Average.Cognitive", "NewSSN")])
+
 ################################3D SCATTERPLOT#############################
 
 #install.packages("rgl")
 
-library("rgl")
+#library("rgl")
 
 ###Assign group numbers to each treatment group for color coding in 3D plot
 
@@ -1087,11 +1579,11 @@ for (i in 1:847){
 #        col=color[NewMaster[NewMaster[,"DaysId"]==j,"GroupNum"]],
 #        main=paste("Follow Up", j))
 
-#propensity score for whole dataset, then use to match after exact and partial matching
-#partial match on stroke severity
-#count number of yeses and no
-#check correlation of stroke severity to cognitive, activity, mobility
-#multiple imputation, interpolate
+#propensity score for whole dataset, then use to match after exact and partial matching DONE
+#partial match on stroke severity DONE (SORT OF)
+#count number of TRUES and FALSES for each patient (NOT NECESSARY?)
+#check correlation of stroke severity to cognitive, activity, mobility (DONE)
+#multiple imputation, interpolate (INTERPOLATION DONE)
 
 
 ###IDEA FOR PAPER
