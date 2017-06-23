@@ -5,10 +5,8 @@
 #Purpose: To match the data based on gender, race, age, baseline average score and #
 #         type of stroke for mobility, activity, and cognitive ability and then    #
 #         perform analysis with matched data groups                                #
-#Functions: matching                                                               #
-#                                                                                  #
+#Functions: matching, analysis.1, analysis.2                                       #
 ####################################################################################
-
 
 ###Upload Data in R
 OldMaster=read.csv("Data/DEID_All.csv")
@@ -337,6 +335,49 @@ NewMaster=rbind(Sort.NewStudyGroup, Sort.NewControlGroup)
 
 NewMaster=NewMaster[order(NewMaster[,"ID"], NewMaster[,"DaysId"]),]
 
+###Create a new Stroke Severity Number for every patient to standardize measurements to
+###be out of 100
+
+for (i in 1:847){
+  
+  if (NewMaster[i,"ACHosp.Stroke.Severity.Number"]==9999){
+    
+    NewMaster[i,"NewSSN"]=NA
+    
+  }else if (NewMaster[i,"ACHosp.Stroke.Severity.Type"]==1) {
+    
+    NewMaster[i,"NewSSN"]=(100*NewMaster[i,"ACHosp.Stroke.Severity.Number"])/42
+    
+  }else if (NewMaster[i,"ACHosp.Stroke.Severity.Type"]==2){
+    
+    NewMaster[i,"NewSSN"]=(100*NewMaster[i,"ACHosp.Stroke.Severity.Number"])/6
+    
+  }else {
+    
+    NewMaster[i,"NewSSN"]=(100*NewMaster[i,"ACHosp.Stroke.Severity.Number"])/5
+  }
+  
+}
+
+
+colMeans(NewMaster[NewMaster[,"Group"]=="Study Group" & NewMaster[,"DaysId"]==4, 
+                   c("NewSSN", "Baseline Average.Mobility", "PT.AM.PAC.Basic.Mobility.Score")],
+         na.rm = TRUE)
+
+cor(NewMaster[NewMaster[,"Group"]=="Study Group" & NewMaster[,"DaysId"]==4, 
+              c("NewSSN", "Baseline Average.Mobility", "PT.AM.PAC.Basic.Mobility.Score")],
+    use = "pairwise.complete.obs")
+
+
+colMeans(NewMaster[NewMaster[,"Group"]=="Control Group" & NewMaster[,"DaysId"]==4, 
+              c("NewSSN", "Baseline Average.Mobility", "PT.AM.PAC.Basic.Mobility.Score")],
+    na.rm = TRUE)
+
+cor(NewMaster[NewMaster[,"Group"]=="Control Group" & NewMaster[,"DaysId"]==4, 
+              c("NewSSN", "Baseline Average.Mobility", "PT.AM.PAC.Basic.Mobility.Score")],
+    use = "pairwise.complete.obs")
+
+
 
 ###Create a dataset that only contains 1 datapoint for each patient
 
@@ -358,29 +399,7 @@ for (i in 1:119){
   
 }
 
-###Create a new Stroke Severity Number for every patient to standardize measurements to
-###be out of 10
 
-for (i in 1:119){
-  
-  if (NewMaster.One[i,"ACHosp.Stroke.Severity.Number"]==9999){
-    
-    NewMaster.One[i,"NewSSN"]=NA
-    
-  }else if (NewMaster.One[i,"ACHosp.Stroke.Severity.Type"]==1) {
-    
-    NewMaster.One[i,"NewSSN"]=(10*NewMaster.One[i,"ACHosp.Stroke.Severity.Number"])/42
-    
-  }else if (NewMaster.One[i,"ACHosp.Stroke.Severity.Type"]==2){
-    
-    NewMaster.One[i,"NewSSN"]=(10*NewMaster.One[i,"ACHosp.Stroke.Severity.Number"])/6
-    
-  }else {
-    
-    NewMaster.One[i,"NewSSN"]=(10*NewMaster.One[i,"ACHosp.Stroke.Severity.Number"])/5
-  }
-  
-}
 
 ###Find propensity score for each observation for propensity score matching based on
 ###medical history variables
@@ -474,6 +493,7 @@ for (i in 1:31){
 NewMaster.One.Study=NewMaster.One[NewMaster.One[,"Group"]=="Study Group",]
 NewMaster.One.Control=NewMaster.One[NewMaster.One[,"Group"]=="Control Group",]
 
+
 #####################################Function#######################################
 #Name: matching                                                                    #
 #Author: Traymon Beavers                                                           #
@@ -548,7 +568,7 @@ matching=function(AgeNum=2, BaselineNum=20, ScoreNum=1, PScoreNum=1, MahalNum=1,
   result=result[order(result[,1], result[,2]),]
   
   ###count the number of distinct study group matches
-  Count=unique(result[,1])
+  Count=length(unique(result[,1]))
 
   ###return either the of matching IDs or the number of distinct study group matches
   ###depending on given "List" input
@@ -629,11 +649,11 @@ analysis.1=function(MatchIDs=MatchIDs.5.20.6.75.All, Length=c(LengthM, LengthA, 
   
   for (i in 2:Length[1]){
     
-    if (MatchIDs[i,1]!=MatchIDs[i-1,1]){
+    if (MatchIDs[1,1]!=MatchIDs[2,1]){
       
-      studydiff=NewMaster[NewMaster[,"ID"]==MatchIDs[i,1] & NewMaster[,"DaysId"]==4, "PT.AM.PAC.Basic.Mobility.Score"] - NewMaster[NewMaster[,"ID"]==MatchIDs[i,1] & NewMaster[,"DaysId"]==4, "Baseline Average.Mobility"]
+      studydiff=NewMaster[NewMaster[,"ID"]==MatchIDs[1,1] & NewMaster[,"DaysId"]==4, "PT.AM.PAC.Basic.Mobility.Score"] - NewMaster[NewMaster[,"ID"]==MatchIDs[1,1] & NewMaster[,"DaysId"]==4, "Baseline Average.Mobility"]
       
-      controldiff=NewMaster[NewMaster[,"ID"]==MatchIDs[i,2] & NewMaster[,"DaysId"]==4, "PT.AM.PAC.Basic.Mobility.Score"] - NewMaster[NewMaster[,"ID"]==MatchIDs[i,2] & NewMaster[,"DaysId"]==4, "Baseline Average.Mobility"]
+      controldiff=NewMaster[NewMaster[,"ID"]==MatchIDs[1,2] & NewMaster[,"DaysId"]==4, "PT.AM.PAC.Basic.Mobility.Score"] - NewMaster[NewMaster[,"ID"]==MatchIDs[1,2] & NewMaster[,"DaysId"]==4, "Baseline Average.Mobility"]
       
       test4data.Mobility=c(test4data.Mobility, studydiff-controldiff)
       
@@ -736,11 +756,11 @@ analysis.1=function(MatchIDs=MatchIDs.5.20.6.75.All, Length=c(LengthM, LengthA, 
   
   for (i in 2:Length[1]){
     
-    if (MatchIDs[i,1]!=MatchIDs[i-1,1]){
+    if (MatchIDs[1,1]!=MatchIDs[2,1]){
       
-      studydiff=NewMaster[NewMaster[,"ID"]==MatchIDs[i,1] & NewMaster[,"DaysId"]==5, "PT.AM.PAC.Basic.Mobility.Score"] - NewMaster[NewMaster[,"ID"]==MatchIDs[i,1] & NewMaster[,"DaysId"]==5, "Baseline Average.Mobility"]
+      studydiff=NewMaster[NewMaster[,"ID"]==MatchIDs[1,1] & NewMaster[,"DaysId"]==5, "PT.AM.PAC.Basic.Mobility.Score"] - NewMaster[NewMaster[,"ID"]==MatchIDs[1,1] & NewMaster[,"DaysId"]==5, "Baseline Average.Mobility"]
       
-      controldiff=NewMaster[NewMaster[,"ID"]==MatchIDs[i,2] & NewMaster[,"DaysId"]==5, "PT.AM.PAC.Basic.Mobility.Score"] - NewMaster[NewMaster[,"ID"]==MatchIDs[i,2] & NewMaster[,"DaysId"]==5, "Baseline Average.Mobility"]
+      controldiff=NewMaster[NewMaster[,"ID"]==MatchIDs[1,2] & NewMaster[,"DaysId"]==5, "PT.AM.PAC.Basic.Mobility.Score"] - NewMaster[NewMaster[,"ID"]==MatchIDs[1,2] & NewMaster[,"DaysId"]==5, "Baseline Average.Mobility"]
       
       test5data.Mobility=c(test5data.Mobility, studydiff-controldiff)
       
@@ -1585,15 +1605,6 @@ for (i in 1:847){
 #check correlation of stroke severity to cognitive, activity, mobility (DONE)
 #multiple imputation, interpolate (INTERPOLATION DONE)
 
-
-###IDEA FOR PAPER
-#show you can do nearly as well without randomized double blind studies through simulations
-#simulate different overlaps
-#build a regression model to detect severity score, look at relationship to assignment to treatment group
-#then tighten or loosen model
-#see how performance deteriorates with loosened model
-
-
 #apply, lapply, package parallel 
 
 ###demonstrate glitch in Matching Function
@@ -1607,3 +1618,5 @@ for (i in 1:847){
 # print(NewMaster.One[matchrows[i,], c("ID", "Group", "Age", "Gender", "New Race", "Baseline Average.Mobility")])
 # 
 # }
+
+getwd()
