@@ -1373,6 +1373,8 @@ View(matchrow.final)
 
 library(ggplot2)
 
+library(gridExtra)
+
 multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
   library(grid)
   
@@ -1419,23 +1421,6 @@ Sort.NewStudyGroup[Sort.NewStudyGroup[,"DaysId"]==3,"col.ggplot"]="purple"
 
 Sort.NewStudyGroup[Sort.NewStudyGroup[,"DaysId"]>=4,"col.ggplot"]="green"
 
-
-for (i in 1:3){
-
-  print(ggplot(data=Sort.NewStudyGroup,
-         aes(x=Days_afterOnset, 
-             y=Sort.NewStudyGroup[,ScoreVarName[i]], 
-             group=ID)) +
-         geom_line() +    
-         geom_point(col=Sort.NewStudyGroup[, "col.ggplot"]) +
-         ggtitle(paste(ScoreName[i], "Score by Days After Stroke for Study Group", sep=" ")) +
-         theme(plot.title = element_text(hjust = 0.5)) +
-         xlab("Days After Stroke") +
-         ylab(paste(ScoreName[i], "Score", sep=" ")) +
-         coord_cartesian(ylim=c(-30,130)))  
-
-}
-
 Sort.NewControlGroup[,"col.ggplot"]=rep(NA, dim(Sort.NewControlGroup)[1])
 
 Sort.NewControlGroup[Sort.NewControlGroup[,"DaysId"]<=2,"col.ggplot"]="blue"
@@ -1444,20 +1429,70 @@ Sort.NewControlGroup[Sort.NewControlGroup[,"DaysId"]==3,"col.ggplot"]="purple"
 
 Sort.NewControlGroup[Sort.NewControlGroup[,"DaysId"]>=4 ,"col.ggplot"]="red"
 
+
 for (i in 1:3){
-  
-  print(ggplot(data=Sort.NewControlGroup,
-               aes(x=Days_afterOnset, 
-                   y=Sort.NewControlGroup[,ScoreVarName[i]], 
+  # Remove NAs (DS 06/23/2017)
+  vname <- ScoreVarName[i]
+  tmp1 <- Sort.NewStudyGroup[!is.na(Sort.NewStudyGroup[, vname]), ]
+
+  p1 <- ggplot(data=tmp1,
+               aes(x=Days_afterOnset,
+                   y=tmp1[,ScoreVarName[i]],
                    group=ID)) +
-          geom_line() +    
-          geom_point(col=Sort.NewControlGroup[, "col.ggplot"]) +
+    geom_line() +
+    geom_point(aes(x = Days_afterOnset,
+                   y = tmp1[,ScoreVarName[i]],
+                   group=col.ggplot,
+                   colour = col.ggplot)) +
+    scale_colour_manual("Assignment", 
+                        values = c("blue", 
+                                   "green",
+                                   "purple"),
+                        labels = c("Pre-assignment",
+                                   "Study", 
+                                   "At assignment")) +
+    scale_x_continuous("Days After Stroke") +
+    scale_y_continuous(paste(ScoreName[i], 
+                             "Score", 
+                             sep=" "),
+                       limits = c(-30, 130)) +
+    ggtitle(paste(ScoreName[i], 
+                  "Score by Days After Stroke for Study Group",
+                  sep=" ")) +
+    theme(plot.title = element_text(hjust = 0.5),
+          legend.position = "top")
+  
+  tmp2 <- Sort.NewControlGroup[!is.na(Sort.NewControlGroup[, vname]), ]
+
+ 
+  
+  p2 <- ggplot(data=tmp2,
+               aes(x=Days_afterOnset,
+                   y=tmp2[,ScoreVarName[i]],
+                   group=ID)) +
+          geom_line() +
+          geom_point(col=tmp2[, "col.ggplot"]) +
           ggtitle(paste(ScoreName[i], "Score by Days After Stroke for Control Group", sep=" ")) +
           theme(plot.title = element_text(hjust = 0.5)) +
           xlab("Days After Stroke") +
           ylab(paste(ScoreName[i], "Score", sep=" ")) +
-          coord_cartesian(ylim=c(-30,130)))  
+          coord_cartesian(ylim=c(-30,130))
+
   
+  tiff(filename = paste("tmp/",
+                        ScoreName[i],
+                        "Score by Days After Stroke.tiff"),
+       height = 8,
+       width = 8,
+       units = 'in',
+       res = 300,
+       compression = "lzw+p")
+  
+  p3=grid.arrange(p1, p2)
+
+  print(p3)
+  
+  graphics.off()
 }
 
 
@@ -1475,9 +1510,12 @@ Interpolate.Master[Interpolate.Master[,"DaysId"]>=4 & Interpolate.Master[,"Group
 
 for (i in 1:3){
   
-  print(ggplot(data=Interpolate.Master[Interpolate.Master[,"ID"] %in% intersect(StudyGroupIDs, matchrow.final[,2]),],
+  tmp1=Interpolate.Master[(Interpolate.Master[,"ID"] %in% intersect(StudyGroupIDs, matchrow.final[,2])) 
+                          & is.na(Interpolate.Master[,"PT.AM.PAC.Basic.Mobility.Score"])==0,]
+  
+  p1=ggplot(data=tmp1,
                aes(x=Days_afterOnset, 
-                   y=Interpolate.Master[Interpolate.Master[,"ID"] %in% intersect(StudyGroupIDs, matchrow.final[,2]),ScoreVarName[i]], 
+                   y=tmp1[Interpolate.Master[,"ID"] %in% intersect(StudyGroupIDs, matchrow.final[,2]),ScoreVarName[i]], 
                    group=ID)) +
           geom_line() +    
           geom_point(col=Interpolate.Master[Interpolate.Master[,"ID"] %in% intersect(StudyGroupIDs, matchrow.final[,2]), "col.ggplot"]) +
@@ -1485,13 +1523,9 @@ for (i in 1:3){
           theme(plot.title = element_text(hjust = 0.5)) +
           xlab("Days After Stroke") +
           ylab(paste(ScoreName[i], "Score", sep=" ")) +
-          coord_cartesian(ylim=c(-30,130)))  
-  
-}
+          coord_cartesian(ylim=c(-30,130))  
 
-for (i in 1:3){
-  
-  print(ggplot(data=Interpolate.Master[Interpolate.Master[,"ID"] %in% intersect(ControlGroupIDs, matchrow.final[,2]),],
+  p2=ggplot(data=Interpolate.Master[Interpolate.Master[,"ID"] %in% intersect(ControlGroupIDs, matchrow.final[,2]),],
                aes(x=Days_afterOnset, 
                    y=Interpolate.Master[Interpolate.Master[,"ID"] %in% intersect(ControlGroupIDs, matchrow.final[,2]),ScoreVarName[i]], 
                    group=ID)) +
@@ -1501,7 +1535,22 @@ for (i in 1:3){
           theme(plot.title = element_text(hjust = 0.5)) +
           xlab("Days After Stroke") +
           ylab(paste(ScoreName[i], "Score", sep=" ")) +
-          coord_cartesian(ylim=c(-30,130)))  
+          coord_cartesian(ylim=c(-30,130))  
+  
+  tiff(filename = paste("tmp/",
+                        ScoreName[i],
+                        "Score by Days After Stroke (Matched).tiff"),
+       height = 8,
+       width = 8,
+       units = 'in',
+       res = 300,
+       compression = "lzw+p")
+  
+  p3=grid.arrange(p1, p2)
+  
+  print(p3)
+  
+  graphics.off()
   
 }
 
