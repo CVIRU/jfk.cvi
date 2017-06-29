@@ -1707,6 +1707,22 @@ multiplot(plot2, plot5, cols=2)
 
 multiplot(plot3, plot6, cols=2)
 
+# point estimate plot for mortality ####
+
+Mortality.Data=as.data.frame(matrix(0,nrow=2, ncol=3))
+
+colnames(Mortality.Data)=c("Group", "Mortality", "Standard.Error")
+
+prop.test(sum(NewMaster.One.Control[,"Deceased_Y.N"]), 
+          length(NewMaster.One.Control[,"Deceased_Y.N"]), 
+          p=0.5)
+
+prop.test(sum(match.subgroup[match.subgroup[,"Group"]=="Control Group","Deceased_Y.N"]), 
+          length(match.subgroup[match.subgroup[,"Group"]=="Control Group","Deceased_Y.N"]), 
+          p=0.5)
+
+
+
 ##############################ANALYSIS OF BINARY PATIENT OUTCOMES##################################
 
 ###Create cohesive variable for readmission and readmission reason
