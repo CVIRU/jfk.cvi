@@ -1,11 +1,12 @@
 #################################Program Description################################
-#Name: Matching and Analyzing (Round 2) V4                                         #
+#Name: Matching and Analyzing (Round 3)                                            #
 #Author: Traymon Beavers                                                           #
-#Date Created: 6/22/2017                                                           #
+#Date Created: 6/29/2017                                                           #
+#Date Updated: 6/29/2017                                                           #
 #Purpose: To match the data based on gender, race, age, baseline average score and #
 #         type of stroke for mobility, activity, and cognitive ability and then    #
-#         perform analysis with matched data groups; 2nd round of data received    #
-#Functions: matching                                                               #
+#         perform analysis with matched data groups; 3rd round of data received    #
+#Functions: matching, follow.up.analysis, lmer.analysis, slope.analysis            #
 #                                                                                  #
 ####################################################################################
 
@@ -14,21 +15,26 @@
 ###is greater than the days after onset for DaysID==j
 ###Stroke Severity Number is missing for 126 patients
 
-
-
 # DATA PREPARATION####
 
 ###Upload Data in R
-OldMaster=read.csv("Data/DEID_All2.csv")
+OldMaster=read.csv("Data/DEID_All3.csv")
 
 ###Delete extraneous varibale
 OldMaster=OldMaster[,-1]
 
-###Delete repeated observations
-
-OldMaster=OldMaster[-seq(1086,1100,2),]
+OldMaster=OldMaster[is.na(OldMaster[,"ID"])==0,]
 
 Master=OldMaster
+
+###Rename races other than Black or White as "Other" in the study and control groups
+
+Master[Master[,"Race"]==3,"New.Race"]="Black"
+
+Master[Master[,"Race"]==5,"New.Race"]="White"
+
+Master[Master[,"Race"]!=3 & Master[,"Race"]!=5,"New.Race"]="Other"
+
 
 #Create consistent missing value indicators for each functional outcome
 
@@ -61,170 +67,26 @@ for (i in 1:dim(Master)[1]){
   
 }
 
-#Create a dataset for deceased people
-DeceasedGroup=Master[(Master[,"Deceased_Y.N"]=="TRUE"),]
 
-#Create datasets for each group 
-BaselineGroup=Master[(Master[,"Group"]=="No"),]
-ControlGroup=Master[(Master[,"Group"]=="Control Group"),]
-StudyGroup=Master[(Master[,"Group"]=="Study Group"),]
+StudyGroupIDs=unique(Master[Master[,"Group"]=="Study Group","ID"])
 
-###Create a vector for the patient IDs in each group
+ControlGroupIDs=unique(Master[Master[,"Group"]=="Control Group","ID"])
 
-DeceasedGroupIDs=DeceasedGroup[DeceasedGroup[,"DaysId"]==1,"ID"]
+Sort.NewStudyGroup=Master[Master[,"ID"] %in% StudyGroupIDs,]
 
-ControlGroupIDs=unique(ControlGroup[,"ID"])
-StudyGroupIDs=unique(StudyGroup[,"ID"])
-
-
-###Match people in baseline group to their respective study or control groups
-
-#Match for study group
-
-
-T=1
-
-if (BaselineGroup[dim(BaselineGroup)[1],"ID"]==StudyGroupIDs[length(StudyGroupIDs)]){
-  
-  NewStudyGroup=rbind(StudyGroup, BaselineGroup[dim(BaselineGroup)[1],])
-  
-}else {
-  
-  NewStudyGroup=StudyGroup
-  
-}
-
-for (i in 1:(dim(BaselineGroup)[1]-1)){
-  
-  if (BaselineGroup[i,"ID"]==StudyGroupIDs[T]){
-    
-    NewStudyGroup=rbind(NewStudyGroup,BaselineGroup[i,])
-    
-  }
-  
-  if (BaselineGroup[i,"ID"]==StudyGroupIDs[T] & BaselineGroup[(i+1),"ID"]!=StudyGroupIDs[T] 
-      & T!=length(StudyGroupIDs)){
-    
-    T=T+1
-  }
-  
-}
-
-#Sort by ID and days after stroke
-
-Sort.NewStudyGroup=NewStudyGroup[order(NewStudyGroup$ID, NewStudyGroup$DaysId),]
-
-#Match for control group
-
-T=1
-
-if (BaselineGroup[dim(BaselineGroup)[1],"ID"]==ControlGroupIDs[length(ControlGroupIDs)]){
-  
-  NewControlGroup=rbind(ControlGroup, BaselineGroup[dim(BaselineGroup)[1],])
-  
-}else {
-  
-  NewControlGroup=ControlGroup
-  
-}
-
-for (i in 1:(dim(BaselineGroup)[1]-1)){
-  
-  if (BaselineGroup[i,"ID"]==ControlGroupIDs[T]){
-    
-    NewControlGroup=rbind(NewControlGroup,BaselineGroup[i,])
-    
-  }
-  
-  if (BaselineGroup[i,"ID"]==ControlGroupIDs[T] & BaselineGroup[(i+1),"ID"]!=ControlGroupIDs[T] 
-      & T!=length(ControlGroupIDs)){
-    
-    T=T+1
-  }
-  
-}
-
-#Sort by ID and days after stroke
-
-Sort.NewControlGroup=NewControlGroup[order(NewControlGroup$ID, NewControlGroup$DaysId),]
-
-###Find the IDs for the crossovers
-
-for (i in ControlGroupIDs){
-  for (j in StudyGroupIDs){
-    
-    if (i==j){
-      
-      print(i)
-      
-    }
-    
-  }
-}
-
-#output was 103, 212
-
-###Remove crossovers from datasets
-
-Sort.NewStudyGroup=Sort.NewStudyGroup[Sort.NewStudyGroup[,"ID"]!=103 & Sort.NewStudyGroup[,"ID"]!=212,]
-Sort.NewControlGroup=Sort.NewControlGroup[Sort.NewControlGroup[,"ID"]!=103 & Sort.NewControlGroup[,"ID"]!=212,]
-
-###Rename races other than Black or White as "Other" in the study and control groups
-
-for (i in 1:dim(Sort.NewStudyGroup)[1]){
-  
-  if (Sort.NewStudyGroup[i,"Race"]==3){
-    
-    Sort.NewStudyGroup[i,"New.Race"]="Black"
-    
-  }else if (Sort.NewStudyGroup[i,"Race"]==5){
-    
-    Sort.NewStudyGroup[i,"New.Race"]="White"
-    
-  }else {
-    
-    Sort.NewStudyGroup[i,"New.Race"]="Other"
-    
-  }  
-  
-}
-
-
-for (i in 1:dim(Sort.NewControlGroup)[1]){
-  
-  if (Sort.NewControlGroup[i,"Race"]==3){
-    
-    Sort.NewControlGroup[i,"New.Race"]="Black"
-    
-  }else if (Sort.NewControlGroup[i,"Race"]==5){
-    
-    Sort.NewControlGroup[i,"New.Race"]="White"
-    
-  }else {
-    
-    Sort.NewControlGroup[i,"New.Race"]="Other"
-    
-  }  
-  
-}
+Sort.NewControlGroup=Master[Master[,"ID"] %in% ControlGroupIDs,]
 
 ###Combine both treatment groups back together
-
 NewMaster=rbind(Sort.NewStudyGroup, Sort.NewControlGroup)
 
 NewMaster=NewMaster[order(NewMaster[,"ID"], NewMaster[,"DaysId"]),]
 
-
-#create a dataset with one observation for each patients
-NewMaster.One=rbind(NewMaster[NewMaster[,"DaysId"]==3,],
-                    NewMaster[(NewMaster[,"DaysId"]==11 & NewMaster[,"ID"]==74) | 
-                                (NewMaster[,"DaysId"]==10 & NewMaster[,"ID"]==214),]) 
-
-NewMaster.One=NewMaster.One[order(NewMaster.One[,"ID"]),]
+#delete cross overs
+NewMaster=NewMaster[-which(NewMaster[,"ID"] %in% intersect(StudyGroupIDs, ControlGroupIDs)),]
 
 ###Create variable for days after assignment to group and baseline for each score
 
-NewMasterIDs=NewMaster.One[,"ID"]
+NewMasterIDs=unique(NewMaster[,"ID"])
 
 NewMaster[,"Days.After.At.Assignment"]=rep(NA,dim(NewMaster)[1])
 NewMaster[,"Baseline.Mobility"]=rep(NA,dim(NewMaster)[1])
@@ -244,37 +106,6 @@ for (i in 1:dim(NewMaster)[1]){
     T=T+1
     
   }
-  
-  if (NewMaster[i,"ID"]==74 | NewMaster[i,"ID"]==214){
-    
-    NewMaster[i,"Days.After.At.Assignment"]=
-      NewMaster[NewMaster[,"DaysId"]==2 & NewMaster[,"ID"]==NewMasterIDs[T], "Days_afterOnset"]
-    
-    NewMaster[i,"Baseline.Mobility"]=NewMaster[NewMaster[,"DaysId"]==1 & NewMaster[,"ID"]==NewMasterIDs[T], "PT.AM.PAC.Basic.Mobility.Score"]
-    NewMaster[i,"Baseline.Activity"]=NewMaster[NewMaster[,"DaysId"]==1 & NewMaster[,"ID"]==NewMasterIDs[T], "OT.AM.Daily.Activity.Score"]
-    NewMaster[i,"Baseline.Cognitive"]=NewMaster[NewMaster[,"DaysId"]==1 & NewMaster[,"ID"]==NewMasterIDs[T], "ST.AM.Applied.Cogn.Score"]
-    
-    NewMaster[i,"Discharge.Mobility"]=NewMaster[NewMaster[,"DaysId"]==2 & NewMaster[,"ID"]==NewMasterIDs[T], "PT.AM.PAC.Basic.Mobility.Score"]
-    NewMaster[i,"Discharge.Activity"]=NewMaster[NewMaster[,"DaysId"]==2 & NewMaster[,"ID"]==NewMasterIDs[T], "OT.AM.Daily.Activity.Score"]
-    NewMaster[i,"Discharge.Cognitive"]=NewMaster[NewMaster[,"DaysId"]==2 & NewMaster[,"ID"]==NewMasterIDs[T], "ST.AM.Applied.Cogn.Score"]
-    
-  }else if (is.na(NewMaster[NewMaster[,"ID"]==NewMasterIDs[T] & 
-                            NewMaster[,"DaysId"]==3, 
-                            "PT.AM.PAC.Basic.Mobility.Score"])==1){
-    
-    NewMaster[i,"Days.After.At.Assignment"]=
-      NewMaster[NewMaster[,"DaysId"]==2 & NewMaster[,"ID"]==NewMasterIDs[T], "Days_afterOnset"]
-    
-    NewMaster[i,"Baseline.Mobility"]=NewMaster[NewMaster[,"DaysId"]==1 & NewMaster[,"ID"]==NewMasterIDs[T], "PT.AM.PAC.Basic.Mobility.Score"]
-    NewMaster[i,"Baseline.Activity"]=NewMaster[NewMaster[,"DaysId"]==1 & NewMaster[,"ID"]==NewMasterIDs[T], "OT.AM.Daily.Activity.Score"]
-    NewMaster[i,"Baseline.Cognitive"]=NewMaster[NewMaster[,"DaysId"]==1 & NewMaster[,"ID"]==NewMasterIDs[T], "ST.AM.Applied.Cogn.Score"]
-    
-    NewMaster[i,"Discharge.Mobility"]=NewMaster[NewMaster[,"DaysId"]==2 & NewMaster[,"ID"]==NewMasterIDs[T], "PT.AM.PAC.Basic.Mobility.Score"]
-    NewMaster[i,"Discharge.Activity"]=NewMaster[NewMaster[,"DaysId"]==2 & NewMaster[,"ID"]==NewMasterIDs[T], "OT.AM.Daily.Activity.Score"]
-    NewMaster[i,"Discharge.Cognitive"]=NewMaster[NewMaster[,"DaysId"]==2 & NewMaster[,"ID"]==NewMasterIDs[T], "ST.AM.Applied.Cogn.Score"]
-    
-    
-  }else {
     
     NewMaster[i,"Days.After.At.Assignment"]=
       NewMaster[NewMaster[,"DaysId"]==3 & NewMaster[,"ID"]==NewMasterIDs[T], "Days_afterOnset"]
@@ -288,37 +119,14 @@ for (i in 1:dim(NewMaster)[1]){
     NewMaster[i,"Discharge.Cognitive"]=NewMaster[NewMaster[,"DaysId"]==2 & NewMaster[,"ID"]==NewMasterIDs[T], "ST.AM.Applied.Cogn.Score"]
     
     
-  }
-  
 }
+  
 
 NewMaster[,"Days.After.Assignment"]=
   NewMaster[,"Days_afterOnset"]-NewMaster[,"Days.After.At.Assignment"]
 
-###switch activity score and OT minutes to correct the error
-NewMaster[NewMaster[,"ID"]==231 & NewMaster[,"DaysId"]==4,
-          c("OT.AM.Daily.Activity.Score", "OT.Int.Treat.Minutes")]=NewMaster[NewMaster[,"ID"]==231 & NewMaster[,"DaysId"]==4,
-                                                                             c("OT.Int.Treat.Minutes", "OT.AM.Daily.Activity.Score")]
-
-Sort.NewStudyGroup[Sort.NewStudyGroup[,"ID"]==231 & Sort.NewStudyGroup[,"DaysId"]==4,
-          c("OT.AM.Daily.Activity.Score", "OT.Int.Treat.Minutes")]=Sort.NewStudyGroup[Sort.NewStudyGroup[,"ID"]==231 & Sort.NewStudyGroup[,"DaysId"]==4,
-                                                                             c("OT.Int.Treat.Minutes", "OT.AM.Daily.Activity.Score")]
-
-NewMaster[,"Zero"]=rep(0,dim(NewMaster)[1])
-
-NewMaster.One=rbind(NewMaster[NewMaster[,"DaysId"]==3,],
-                    NewMaster[(NewMaster[,"DaysId"]==11 & NewMaster[,"ID"]==74) | 
-                                (NewMaster[,"DaysId"]==10 & NewMaster[,"ID"]==214),]) 
-
-NewMaster.One=NewMaster.One[order(NewMaster.One[,"ID"]),]
-
-###switch NIHSS and ICH to correct the error
-NewMaster.One[NewMaster.One[,"ID"]==165,
-              c("ACHosp.Stroke.Severity.Number_NIHSS", "ACHosp.Stroke.Severity.Number_ICH")]=NewMaster.One[NewMaster.One[,"ID"]==165,
-                                                                                                           c("ACHosp.Stroke.Severity.Number_ICH", "ACHosp.Stroke.Severity.Number_NIHSS")]
-NewMaster.One[NewMaster.One[,"ID"]==162,
-              c("ACHosp.Stroke.Severity.Number_NIHSS", "ACHosp.Stroke.Severity.Number_ICH")]=NewMaster.One[NewMaster.One[,"ID"]==162,
-                                                                                                           c("ACHosp.Stroke.Severity.Number_ICH", "ACHosp.Stroke.Severity.Number_NIHSS")]
+#create a dataset with one observation for each patient
+NewMaster.One=NewMaster[NewMaster[,"DaysId"]==3,]
 
 # create datasets with one observation for each group
 NewMaster.One.Study=NewMaster.One[NewMaster.One[,"Group"]=="Study Group",]
@@ -331,140 +139,139 @@ ScoreName=c("Mobility", "Activity", "Cognitive")
 ScoreVarName=c("PT.AM.PAC.Basic.Mobility.Score", "OT.AM.Daily.Activity.Score", "ST.AM.Applied.Cogn.Score")
 
 
-# CHECK THAT THE DATA IS IN CORRECT RANGES####
+CHECK THAT THE DATA IS IN CORRECT RANGES####
 
-# ###Check education level range
-# 
-# NewMaster[which((NewMaster[,"Education.Level"]>40 | NewMaster[,"Education.Level"]<0) & NewMaster[,"Education.Level"]!=9999), "Education.Level"]
-# 
-# ###Check Stroke Severity Numbers: ICH 162 is 7, 165 is 21
-# 
-# NewMaster[which((NewMaster[,"ACHosp.Stroke.Severity.Number_NIHSS"]>42 | NewMaster[,"ACHosp.Stroke.Severity.Number_NIHSS"]<0) & 
-#                   NewMaster[,"ACHosp.Stroke.Severity.Number_NIHSS"]!=9999), "ACHosp.Stroke.Severity.Number_NIHSS"]
-# 
-# NewMaster[which((NewMaster[,"ACHosp.Stroke.Severity.Number_ICH"]>6 | NewMaster[,"ACHosp.Stroke.Severity.Number_ICH"]<0) & 
-#                   NewMaster[,"ACHosp.Stroke.Severity.Number_ICH"]!=9999), c("ID", "ACHosp.Stroke.Severity.Number_ICH")]
-# 
-# NewMaster[which((NewMaster[,"ACHosp.Stroke.Severity.Number_HH"]>5 | NewMaster[,"ACHosp.Stroke.Severity.Number_HH"]<0) & 
-#                   NewMaster[,"ACHosp.Stroke.Severity.Number_HH"]!=9999), c("ID", "ACHosp.Stroke.Severity.Number_HH")]
-# 
-# ###Check Facility Adjustor
-# 
-# NewMaster[which((NewMaster[,"ARHosp.JRI.Facility.Adjustor"]>110 | NewMaster[,"ARHosp.JRI.Facility.Adjustor"]<101) & 
-#                   NewMaster[,"ARHosp.JRI.Facility.Adjustor"]!=9999), c("ID", "ARHosp.JRI.Facility.Adjustor")]
-# 
-# ###Check FIM Scores
-# 
-# NewMaster[which((NewMaster[,"ARHosp.JRI.Adm.FIM.Motor"]>91 | NewMaster[,"ARHosp.JRI.Adm.FIM.Motor"]<12) & 
-#                   NewMaster[,"ARHosp.JRI.Adm.FIM.Motor"]!=9999), "ARHosp.JRI.Adm.FIM.Motor"]
-# 
-# NewMaster[which((NewMaster[,"ARHosp.JRI.Adm.FIM.Cogn"]>35 | NewMaster[,"ARHosp.JRI.Adm.FIM.Cogn"]<0) & 
-#                   NewMaster[,"ARHosp.JRI.Adm.FIM.Cogn"]!=9999), "ARHosp.JRI.Adm.FIM.Cogn"]
-# 
-# NewMaster[which((NewMaster[,"ARHosp.JRI.Adm.FIM.Total"]>126 | NewMaster[,"ARHosp.JRI.Adm.FIM.Total"]<17) & 
-#                   NewMaster[,"ARHosp.JRI.Adm.FIM.Total"]!=9999), "ARHosp.JRI.Adm.FIM.Total"]
-# 
-# NewMaster[which((NewMaster[,"ARHosp.JRI.Dis.FIM.Motor"]>91 | NewMaster[,"ARHosp.JRI.Dis.FIM.Motor"]<12) & 
-#                   NewMaster[,"ARHosp.JRI.Dis.FIM.Motor"]!=9999), "ARHosp.JRI.Dis.FIM.Motor"]
-# 
-# NewMaster[which((NewMaster[,"ARHosp.JRI.Dis.FIM.Cogn"]>35 | NewMaster[,"ARHosp.JRI.Dis.FIM.Cogn"]<0) & 
-#                   NewMaster[,"ARHosp.JRI.Dis.FIM.Cogn"]!=9999), "ARHosp.JRI.Adm.FIM.Cogn"]
-# 
-# NewMaster[which((NewMaster[,"ARHosp.JRI.Dis.FIM.Total"]>126 | NewMaster[,"ARHosp.JRI.Dis.FIM.Total"]<17) & 
-#                   NewMaster[,"ARHosp.JRI.Dis.FIM.Total"]!=9999), "ARHosp.JRI.Dis.FIM.Total"]
-# 
-# 
-# ###Check height, weight, BMI, SBPHTN, DBPHTN, Fast-Nonfasting LDL, and HbA1c
-# 
-# NewMaster[which((NewMaster[,"Height"]>240 | NewMaster[,"Height"]<120) & 
-#                   NewMaster[,"Height"]!=9999 & NewMaster[,"Height"]!=8888), 
-#           c("ID", "Height") ]
-# 
-# NewMaster[which((NewMaster[,"Weight"]>230 | NewMaster[,"Weight"]<29) & 
-#                   NewMaster[,"Weight"]!=9999 & NewMaster[,"Weight"]!=8888), 
-#           c("ID", "Weight") ]
-# 
-# NewMaster[which((NewMaster[,"BMI"]>60 | NewMaster[,"BMI"]<10) & 
-#                   NewMaster[,"BMI"]!=9999 & NewMaster[,"BMI"]!=8888), 
-#           c("ID", "BMI") ]
-# 
-# NewMaster[which((NewMaster[,"SBP.HTN"]>250 | NewMaster[,"SBP.HTN"]<60) & 
-#                     NewMaster[,"SBP.HTN"]!=9999 & NewMaster[,"SBP.HTN"]!=8888), 
-#           c("ID", "SBP.HTN") ]
-# 
-# NewMaster[which((NewMaster[,"DBP.HTN"]>160 | NewMaster[,"DBP.HTN"]<20) & 
-#                   NewMaster[,"DBP.HTN"]!=9999 & NewMaster[,"DBP.HTN"]!=8888), 
-#           c("ID", "DBP.HTN") ]
-# 
-# NewMaster[which((NewMaster[,"Fast.Nonfasting.LDL"]>300 | NewMaster[,"Fast.Nonfasting.LDL"]<20) & 
-#                   NewMaster[,"Fast.Nonfasting.LDL"]!=9999 & NewMaster[,"Fast.Nonfasting.LDL"]!=8888), 
-#           c("ID", "Fast.Nonfasting.LDL") ]
-# 
-# NewMaster[which((NewMaster[,"HbA1c"]>20 | NewMaster[,"HbA1c"]<0) & 
-#                   NewMaster[,"HbA1c"]!=9999 & NewMaster[,"HbA1c"]!=8888), 
-#           c("ID", "HbA1c") ]
-# 
-# 
-# ###Check TotNoOfMod_HighRisk
-# 
-# NewMaster[which((NewMaster[,"TotNoOfMod_HighRisk"]>11 | NewMaster[,"TotNoOfMod_HighRisk"]<0) & 
-#                   NewMaster[,"TotNoOfMod_HighRisk"]!=9999 & NewMaster[,"HbA1c"]!=8888), 
-#           c("ID", "TotNoOfMod_HighRisk")]
-# 
-# ###Check MoCa score
-# 
-# NewMaster[which((NewMaster[,"MoCA.Score"]>30 | NewMaster[,"MoCA.Score"]<0) & 
-#                   NewMaster[,"MoCA.Score"]!=9999 & NewMaster[,"MoCA.Score"]!=8888), 
-#           c("ID", "MoCA.Score")]
-# 
-# ###Check functional outcome scores and minutes: 231 Activity Score is 180
-# 
-# NewMaster[which((NewMaster[,"ModRankinScore"]>6 | NewMaster[,"ModRankinScore"]<0) & 
-#                   NewMaster[,"ModRankinScore"]!=9999 & NewMaster[,"ModRankinScore"]!=8888), 
-#           c("ID", "ModRankinScore")]
-# 
-# NewMaster[which((NewMaster[,"PT.AM.PAC.Basic.Mobility.Score"]>130 | NewMaster[,"PT.AM.PAC.Basic.Mobility.Score"]< -30) & 
-#                   NewMaster[,"PT.AM.PAC.Basic.Mobility.Score"]!=9999 & NewMaster[,"PT.AM.PAC.Basic.Mobility.Score"]!=8888), 
-#           c("ID", "PT.AM.PAC.Basic.Mobility.Score")]
-# 
-# NewMaster[which((NewMaster[,"OT.AM.Daily.Activity.Score"]>130 | NewMaster[,"OT.AM.Daily.Activity.Score"]< -30) & 
-#                   NewMaster[,"OT.AM.Daily.Activity.Score"]!=9999 & NewMaster[,"OT.AM.Daily.Activity.Score"]!=8888), 
-#           c("ID", "OT.AM.Daily.Activity.Score")]
-# 
-# NewMaster[which((NewMaster[,"ST.AM.Applied.Cogn.Score"]>130 | NewMaster[,"ST.AM.Applied.Cogn.Score"]< -30) & 
-#                   NewMaster[,"ST.AM.Applied.Cogn.Score"]!=9999 & NewMaster[,"ST.AM.Applied.Cogn.Score"]!=8888), 
-#           c("ID", "ST.AM.Applied.Cogn.Score")]
-# 
-# ###Check CVG scores: 125 Sessions Per Week is 19 309 Sessions Per Week is 6
-# ###For Met.Mins some IDs have 99980001 and 78996544, Example IDs are 251 and 171
-# 
-# NewMaster[which((NewMaster[,"Cardiovascular.Group.SessionsPerWeek"]>5 | NewMaster[,"Cardiovascular.Group.SessionsPerWeek"]<0) & 
-#                   NewMaster[,"Cardiovascular.Group.SessionsPerWeek"]!=9999 & NewMaster[,"Cardiovascular.Group.SessionsPerWeek"]!=8888), 
-#           c("ID", "Cardiovascular.Group.SessionsPerWeek")]
-# 
-# NewMaster[which((NewMaster[,"Cardiovascular.Group.Tot.Sessions"]>50 | NewMaster[,"Cardiovascular.Group.Tot.Sessions"]<0) & 
-#                   NewMaster[,"Cardiovascular.Group.Tot.Sessions"]!=9999 & NewMaster[,"Cardiovascular.Group.Tot.Sessions"]!=8888), 
-#           c("ID", "Cardiovascular.Group.Tot.Sessions")]
-# 
-# NewMaster[which((NewMaster[,"Cardiovascular.Group.Intensity.Mets."]>10 | NewMaster[,"Cardiovascular.Group.Intensity.Mets."]<0) & 
-#                   NewMaster[,"Cardiovascular.Group.Intensity.Mets."]!=9999 & NewMaster[,"Cardiovascular.Group.Intensity.Mets."]!=8888), 
-#           c("ID", "Cardiovascular.Group.Intensity.Mets.")]
-# 
-# NewMaster[which((NewMaster[,"Cardiovascular.Group.Tot.Mins"]>60 | NewMaster[,"Cardiovascular.Group.Tot.Mins"]<0) & 
-#                   NewMaster[,"Cardiovascular.Group.Tot.Mins"]!=9999 & NewMaster[,"Cardiovascular.Group.Tot.Mins"]!=8888), 
-#           c("ID", "Cardiovascular.Group.Tot.Mins")]
-# 
-# NewMaster[which((NewMaster[,"Cardiovascular.Group.Met.Mins"]>500 | NewMaster[,"Cardiovascular.Group.Met.Mins"]<0) & 
-#                   NewMaster[,"Cardiovascular.Group.Met.Mins"]!=9999 & NewMaster[,"Cardiovascular.Group.Met.Mins"]!=8888), 
-#           c("ID", "Cardiovascular.Group.Met.Mins")]
-# 
-# NewMaster[which((NewMaster[,"CVG.Freq"]>3 | NewMaster[,"CVG.Freq"]<1) & 
-#                   NewMaster[,"CVG.Freq"]!=9999 & NewMaster[,"CVG.Freq"]!=8888), 
-#           c("ID", "CVG.Freq")]
-# 
-# NewMaster[which((NewMaster[,"CVG.Total"]>36 | NewMaster[,"CVG.Total"]<0) & 
-#                   NewMaster[,"CVG.Total"]!=9999 & NewMaster[,"CVG.Total"]!=8888), 
-#           c("ID", "CVG.Total")]
+###Check education level range
+
+NewMaster[which((NewMaster[,"Education.Level"]>40 | NewMaster[,"Education.Level"]<0) & NewMaster[,"Education.Level"]!=9999), "Education.Level"]
+
+###Check Stroke Severity Numbers: ICH 239 is 7
+
+NewMaster[which((NewMaster[,"ACHosp.Stroke.Severity.Number_NIHSS"]>42 | NewMaster[,"ACHosp.Stroke.Severity.Number_NIHSS"]<0) &
+                  NewMaster[,"ACHosp.Stroke.Severity.Number_NIHSS"]!=9999), "ACHosp.Stroke.Severity.Number_NIHSS"]
+
+NewMaster[which((NewMaster[,"ACHosp.Stroke.Severity.Number_ICH"]>6 | NewMaster[,"ACHosp.Stroke.Severity.Number_ICH"]<0) &
+                  NewMaster[,"ACHosp.Stroke.Severity.Number_ICH"]!=9999), c("ID", "ACHosp.Stroke.Severity.Number_ICH")]
+
+NewMaster[which((NewMaster[,"ACHosp.Stroke.Severity.Number_HH"]>5 | NewMaster[,"ACHosp.Stroke.Severity.Number_HH"]<0) &
+                  NewMaster[,"ACHosp.Stroke.Severity.Number_HH"]!=9999), c("ID", "ACHosp.Stroke.Severity.Number_HH")]
+
+###Check Facility Adjustor
+
+NewMaster[which((NewMaster[,"ARHosp.JRI.Facility.Adjustor"]>110 | NewMaster[,"ARHosp.JRI.Facility.Adjustor"]<101) &
+                  NewMaster[,"ARHosp.JRI.Facility.Adjustor"]!=9999), c("ID", "ARHosp.JRI.Facility.Adjustor")]
+
+###Check FIM Scores
+
+NewMaster[which((NewMaster[,"ARHosp.JRI.Adm.FIM.Motor"]>91 | NewMaster[,"ARHosp.JRI.Adm.FIM.Motor"]<12) &
+                  NewMaster[,"ARHosp.JRI.Adm.FIM.Motor"]!=9999), "ARHosp.JRI.Adm.FIM.Motor"]
+
+NewMaster[which((NewMaster[,"ARHosp.JRI.Adm.FIM.Cogn"]>35 | NewMaster[,"ARHosp.JRI.Adm.FIM.Cogn"]<0) &
+                  NewMaster[,"ARHosp.JRI.Adm.FIM.Cogn"]!=9999), "ARHosp.JRI.Adm.FIM.Cogn"]
+
+NewMaster[which((NewMaster[,"ARHosp.JRI.Adm.FIM.Total"]>126 | NewMaster[,"ARHosp.JRI.Adm.FIM.Total"]<17) &
+                  NewMaster[,"ARHosp.JRI.Adm.FIM.Total"]!=9999), "ARHosp.JRI.Adm.FIM.Total"]
+
+NewMaster[which((NewMaster[,"ARHosp.JRI.Dis.FIM.Motor"]>91 | NewMaster[,"ARHosp.JRI.Dis.FIM.Motor"]<12) &
+                  NewMaster[,"ARHosp.JRI.Dis.FIM.Motor"]!=9999), "ARHosp.JRI.Dis.FIM.Motor"]
+
+# 214 has Cogn 85 and Total 158
+
+NewMaster[which((NewMaster[,"ARHosp.JRI.Dis.FIM.Cogn"]>35 | NewMaster[,"ARHosp.JRI.Dis.FIM.Cogn"]<0) &
+                  NewMaster[,"ARHosp.JRI.Dis.FIM.Cogn"]!=9999), c("ID", "ARHosp.JRI.Dis.FIM.Cogn")]
+
+NewMaster[which((NewMaster[,"ARHosp.JRI.Dis.FIM.Total"]>126 | NewMaster[,"ARHosp.JRI.Dis.FIM.Total"]<17) &
+                  NewMaster[,"ARHosp.JRI.Dis.FIM.Total"]!=9999), c("ID","ARHosp.JRI.Dis.FIM.Total")]
+
+
+###Check height, weight, BMI, SBPHTN, DBPHTN, Fast-Nonfasting LDL, and HbA1c
+
+NewMaster[which((NewMaster[,"Height"]>240 | NewMaster[,"Height"]<120) &
+                  NewMaster[,"Height"]!=9999 & NewMaster[,"Height"]!=8888),
+          c("ID", "Height") ]
+
+NewMaster[which((NewMaster[,"Weight"]>230 | NewMaster[,"Weight"]<29) &
+                  NewMaster[,"Weight"]!=9999 & NewMaster[,"Weight"]!=8888),
+          c("ID", "Weight") ]
+
+NewMaster[which((NewMaster[,"BMI"]>60 | NewMaster[,"BMI"]<10) &
+                  NewMaster[,"BMI"]!=9999 & NewMaster[,"BMI"]!=8888),
+          c("ID", "BMI") ]
+
+NewMaster[which((NewMaster[,"SBP.HTN"]>250 | NewMaster[,"SBP.HTN"]<60) &
+                    NewMaster[,"SBP.HTN"]!=9999 & NewMaster[,"SBP.HTN"]!=8888),
+          c("ID", "SBP.HTN") ]
+
+NewMaster[which((NewMaster[,"DBP.HTN"]>160 | NewMaster[,"DBP.HTN"]<20) &
+                  NewMaster[,"DBP.HTN"]!=9999 & NewMaster[,"DBP.HTN"]!=8888),
+          c("ID", "DBP.HTN") ]
+
+NewMaster[which((NewMaster[,"Fast.Nonfasting.LDL"]>300 | NewMaster[,"Fast.Nonfasting.LDL"]<20) &
+                  NewMaster[,"Fast.Nonfasting.LDL"]!=9999 & NewMaster[,"Fast.Nonfasting.LDL"]!=8888),
+          c("ID", "Fast.Nonfasting.LDL") ]
+
+NewMaster[which((NewMaster[,"HbA1c"]>20 | NewMaster[,"HbA1c"]<0) &
+                  NewMaster[,"HbA1c"]!=9999 & NewMaster[,"HbA1c"]!=8888),
+          c("ID", "HbA1c") ]
+
+
+###Check TotNoOfMod_HighRisk
+
+NewMaster[which((NewMaster[,"TotNoOfMod_HighRisk"]>11 | NewMaster[,"TotNoOfMod_HighRisk"]<0) &
+                  NewMaster[,"TotNoOfMod_HighRisk"]!=9999 & NewMaster[,"HbA1c"]!=8888),
+          c("ID", "TotNoOfMod_HighRisk")]
+
+###Check MoCa score
+
+NewMaster[which((NewMaster[,"MoCA.Score"]>30 | NewMaster[,"MoCA.Score"]<0) &
+                  NewMaster[,"MoCA.Score"]!=9999 & NewMaster[,"MoCA.Score"]!=8888),
+          c("ID", "MoCA.Score")]
+
+###Check functional outcome scores and minutes: 231 Activity Score is 180
+
+NewMaster[which((NewMaster[,"ModRankinScore"]>6 | NewMaster[,"ModRankinScore"]<0) &
+                  NewMaster[,"ModRankinScore"]!=9999 & NewMaster[,"ModRankinScore"]!=8888),
+          c("ID", "ModRankinScore")]
+
+NewMaster[which((NewMaster[,"PT.AM.PAC.Basic.Mobility.Score"]>130 | NewMaster[,"PT.AM.PAC.Basic.Mobility.Score"]< -30) &
+                  NewMaster[,"PT.AM.PAC.Basic.Mobility.Score"]!=9999 & NewMaster[,"PT.AM.PAC.Basic.Mobility.Score"]!=8888),
+          c("ID", "PT.AM.PAC.Basic.Mobility.Score")]
+
+NewMaster[which((NewMaster[,"OT.AM.Daily.Activity.Score"]>130 | NewMaster[,"OT.AM.Daily.Activity.Score"]< -30) &
+                  NewMaster[,"OT.AM.Daily.Activity.Score"]!=9999 & NewMaster[,"OT.AM.Daily.Activity.Score"]!=8888),
+          c("ID", "OT.AM.Daily.Activity.Score")]
+
+NewMaster[which((NewMaster[,"ST.AM.Applied.Cogn.Score"]>130 | NewMaster[,"ST.AM.Applied.Cogn.Score"]< -30) &
+                  NewMaster[,"ST.AM.Applied.Cogn.Score"]!=9999 & NewMaster[,"ST.AM.Applied.Cogn.Score"]!=8888),
+          c("ID", "ST.AM.Applied.Cogn.Score")]
+
+NewMaster[which((NewMaster[,"Cardiovascular.Group.SessionsPerWeek"]>5 | NewMaster[,"Cardiovascular.Group.SessionsPerWeek"]<0) &
+                  NewMaster[,"Cardiovascular.Group.SessionsPerWeek"]!=9999 & NewMaster[,"Cardiovascular.Group.SessionsPerWeek"]!=8888),
+          c("ID", "Cardiovascular.Group.SessionsPerWeek")]
+
+NewMaster[which((NewMaster[,"Cardiovascular.Group.Tot.Sessions"]>50 | NewMaster[,"Cardiovascular.Group.Tot.Sessions"]<0) &
+                  NewMaster[,"Cardiovascular.Group.Tot.Sessions"]!=9999 & NewMaster[,"Cardiovascular.Group.Tot.Sessions"]!=8888),
+          c("ID", "Cardiovascular.Group.Tot.Sessions")]
+
+NewMaster[which((NewMaster[,"Cardiovascular.Group.Intensity.Mets."]>10 | NewMaster[,"Cardiovascular.Group.Intensity.Mets."]<0) &
+                  NewMaster[,"Cardiovascular.Group.Intensity.Mets."]!=9999 & NewMaster[,"Cardiovascular.Group.Intensity.Mets."]!=8888),
+          c("ID", "Cardiovascular.Group.Intensity.Mets.")]
+
+NewMaster[which((NewMaster[,"Cardiovascular.Group.Tot.Mins"]>60 | NewMaster[,"Cardiovascular.Group.Tot.Mins"]<0) &
+                  NewMaster[,"Cardiovascular.Group.Tot.Mins"]!=9999 & NewMaster[,"Cardiovascular.Group.Tot.Mins"]!=8888),
+          c("ID", "Cardiovascular.Group.Tot.Mins")]
+
+NewMaster[which((NewMaster[,"Cardiovascular.Group.Met.Mins"]>500 | NewMaster[,"Cardiovascular.Group.Met.Mins"]<0) &
+                  NewMaster[,"Cardiovascular.Group.Met.Mins"]!=9999 & NewMaster[,"Cardiovascular.Group.Met.Mins"]!=8888),
+          c("ID", "Cardiovascular.Group.Met.Mins")]
+
+NewMaster[which((NewMaster[,"CVG.Freq"]>3 | NewMaster[,"CVG.Freq"]<1) &
+                  NewMaster[,"CVG.Freq"]!=9999 & NewMaster[,"CVG.Freq"]!=8888),
+          c("ID", "CVG.Freq")]
+
+NewMaster[which((NewMaster[,"CVG.Total"]>36 | NewMaster[,"CVG.Total"]<0) &
+                  NewMaster[,"CVG.Total"]!=9999 & NewMaster[,"CVG.Total"]!=8888),
+          c("ID", "CVG.Total")]
 
 
 
@@ -624,23 +431,11 @@ Interpolate.Master.One=rbind(Interpolate.Master[Interpolate.Master[,"DaysId"]==3
 Interpolate.Master.One=Interpolate.Master.One[order(Interpolate.Master.One[,"ID"]),]
 
 
-###Find propensity score for each observation for propensity score matching based on
-###medical history variables
 
-Medical.History.Variables=colnames(Interpolate.Master.One)[47:69]
-
-fmla=as.formula(paste("Group ~ ", paste(Medical.History.Variables, collapse="+")))
-
-glm.out=glm(formula=fmla, family=binomial(logit),
-            data=Interpolate.Master.One[,c("Group", Medical.History.Variables)])
-
-Interpolate.Master.One[,"Propensity.Score"]=glm.out$fitted.values
-
-
-# View(NewMaster[,c("ID", "DaysId", "PT.AM.PAC.Basic.Mobility.Score", 
+# View(NewMaster[,c("ID", "DaysId", "PT.AM.PAC.Basic.Mobility.Score",
 #                   "OT.AM.Daily.Activity.Score" ,"ST.AM.Applied.Cogn.Score")])
 # 
-# View(Interpolate.Master[,c("ID", "DaysId", "PT.AM.PAC.Basic.Mobility.Score", 
+# View(Interpolate.Master[,c("ID", "DaysId", "PT.AM.PAC.Basic.Mobility.Score",
 #                   "OT.AM.Daily.Activity.Score" ,"ST.AM.Applied.Cogn.Score")])
 
 
@@ -754,10 +549,10 @@ matching=function(AgeNum=2, BaselineMobNum=20, BaselineActNum=20,
 
 #####Check function####
 
-matchrows=matching(AgeNum = 5 , BaselineMobNum=20, BaselineActNum=20, 
-                   BaselineCogNum=30, PScoreNum = 1, FacAdjNum = 10)
+matchrows=matching(AgeNum = 5 , BaselineMobNum=25, BaselineActNum=25, 
+                   BaselineCogNum=25, PScoreNum = 1, FacAdjNum = 2)
 
-#length(unique(matchrows[matchrows[,3]==1,2]))
+length(unique(matchrows[matchrows[,3]==1,2]))
 
 # 
 # View(matchrows)
@@ -776,7 +571,7 @@ matchrow.final=c(0,0,0)
 
 for (i in unique(matchrows[matchrows[,3]==1,2])){
   
-  set.seed(14)
+  set.seed(13)
   
   N=length(which(matchrows[,2]==i))
   
@@ -809,7 +604,7 @@ matchrow.final=matchrow.final[-1,]
 # B=c(B,length(unique(matchrow.final[matchrow.final[,3]==0,2])))
 # 
 # 
-# if (length(unique(matchrow.final[matchrow.final[,3]==0,2]))>=33 & Non.Missing.Num>=513){
+# if (length(unique(matchrow.final[matchrow.final[,3]==0,2]))>=50 & Non.Missing.Num>=770){
 # 
 #   print(k)
 #   print(c(length(unique(matchrow.final[matchrow.final[,3]==0,2])),Non.Missing.Num))
@@ -1010,22 +805,13 @@ View(NewMaster.One[NewMaster.One[,"ID"]==23 | NewMaster.One[,"ID"]==230,
 
 ##########################ANALYSIS OF CONTINUOUS PATIENT OUTCOMES##########################
 
-#(5, 20, 20, 30, 1, 2) yields 38 study ID matches with 26 unique controls and 424 nonmissing obs
-#seed 146
-#max is 26 and 424
-
-#(5, 20, 20, 30, 1, 3) yields 41 study ID matches with 29 unique controls and 453 nonmissing obs
-#seed 303
-#max is 29 and 453
-
-#(5, 20, 20, 30, 1, 10) yields 45 study ID matches with 33 unique controls and 513 nonmissing obs
-#seed 14
-#max is 33 and 513
+# (5, 25, 25, 25, 1, 2) yields 66 out of 85 study ID matches with 54 unique controls and 774 nonmissing obs
+# with seed 13; max is 54 and 774
 
 ####follow up analysis####
 
-follow.up.analysis=function(AgeNum = 5, BaselineMobNum=20, BaselineActNum=20, 
-                            BaselineCogNum=30, PScoreNum = 1, FacAdjNum = 3,
+follow.up.analysis=function(AgeNum = 5, BaselineMobNum=25, BaselineActNum=25, 
+                            BaselineCogNum=25, PScoreNum = 1, FacAdjNum = 2,
                             ScoreNum=1, FollowUpNum=4){
   
   matchrows=matching(AgeNum = AgeNum , BaselineMobNum=BaselineMobNum, BaselineActNum=BaselineActNum, 
@@ -1037,7 +823,7 @@ follow.up.analysis=function(AgeNum = 5, BaselineMobNum=20, BaselineActNum=20,
   
   for (i in unique(matchrows[matchrows[,3]==1,2])){
     
-    set.seed(303)
+    set.seed(13)
     
     N=length(which(matchrows[,2]==i))
     
@@ -1132,8 +918,8 @@ for (i in 1:3){
 
 ####lmer analysis####
 
-lmer.analysis=function(AgeNum = 5, BaselineMobNum=20, BaselineActNum=20, 
-                       BaselineCogNum=30, PScoreNum = 1, FacAdjNum = 3,
+lmer.analysis=function(AgeNum = 5, BaselineMobNum=25, BaselineActNum=25, 
+                       BaselineCogNum=25, PScoreNum = 1, FacAdjNum = 2,
                        ScoreNum=1, choice=1){
   
   require(lmerTest)
@@ -1149,7 +935,7 @@ lmer.analysis=function(AgeNum = 5, BaselineMobNum=20, BaselineActNum=20,
   
   for (i in unique(matchrows[matchrows[,3]==1,2])){
     
-    set.seed(303)
+    set.seed(13)
     
     N=length(which(matchrows[,2]==i))
     
@@ -1190,14 +976,14 @@ lmer.analysis=function(AgeNum = 5, BaselineMobNum=20, BaselineActNum=20,
   
   
   ###Create new Interpolate.Master dataset for matched observations
-  Interpolate.Master.Analysis=Interpolate.Master[Interpolate.Master[,"ID"] %in% matchrow.final[,2] & Interpolate.Master[,"DaysId"]>3, Analysis.Variables]
+  Interpolate.Master.Analysis=Interpolate.Master[Interpolate.Master[,"ID"] %in% matchrows.final[,2] & Interpolate.Master[,"DaysId"]>3, Analysis.Variables]
   
   Interpolate.Master.Analysis[,"Score.Diff.from.Baseline"]=Interpolate.Master.Analysis[,ScoreVarName[ScoreNum]]-Interpolate.Master.Analysis[,paste("Baseline", ScoreName[ScoreNum], sep=".")]
   
   Interpolate.Master.Analysis[,"Follow.Up.After.Assignment"]=rep(NA, dim(Interpolate.Master.Analysis)[1])
   
   Interpolate.Master.Analysis[Interpolate.Master.Analysis[,"DaysId"]==4,"Follow.Up.After.Assignment"]="First"
-
+  
   Interpolate.Master.Analysis[Interpolate.Master.Analysis[,"DaysId"]==5,"Follow.Up.After.Assignment"]="Second"
   
   Interpolate.Master.Analysis[Interpolate.Master.Analysis[,"DaysId"]==6,"Follow.Up.After.Assignment"]="Third"
@@ -1205,7 +991,7 @@ lmer.analysis=function(AgeNum = 5, BaselineMobNum=20, BaselineActNum=20,
   Interpolate.Master.Analysis[Interpolate.Master.Analysis[,"DaysId"]==7,"Follow.Up.After.Assignment"]="Fourth"
   
   Interpolate.Master.Analysis[Interpolate.Master.Analysis[,"DaysId"]==8,"Follow.Up.After.Assignment"]="Final"
-    
+  
   Interpolate.Master.Analysis[,"PairID"]=rep(NA, dim(Interpolate.Master.Analysis)[1])
   
   for (i in 1:dim(Interpolate.Master.Analysis)[1]){
@@ -1216,22 +1002,22 @@ lmer.analysis=function(AgeNum = 5, BaselineMobNum=20, BaselineActNum=20,
   
   Analysis.Data=Interpolate.Master.Analysis
   
-  fmla1=as.formula(paste("Score.Diff.from.Baseline ~ ", paste(c(Analysis.Variables[c(-1,-10)], "Follow.Up.After.Assignment" ,"(ID | PairID)"), collapse="+"), "+ Follow.Up.After.Assignment*Days.After.Assignment"))
+  fmla1=as.formula(paste("Score.Diff.from.Baseline ~ ", paste(c("Group" ,"(ID | PairID) + (1 | Follow.Up.After.Assignment)"), collapse="+")))
   
-  fmla2=as.formula(paste("Score.Diff.from.Baseline ~ ", paste(c("Group", "Days.After.Assignment", "Follow.Up.After.Assignment", "(ID | PairID)"), collapse="+"), "+ Follow.Up.After.Assignment*Days.After.Assignment"))
+  fmla2=as.formula(paste("Score.Diff.from.Baseline ~ ", paste(c("Group", "Days.After.Assignment", "(ID | PairID)"), collapse="+"), "+ Group*Days.After.Assignment"))
   
   fmla3=as.formula(paste("Score.Diff.from.Baseline ~ ", paste(c("Group", "Days.After.Assignment", "(ID | PairID)"), collapse="+")))
   
   fmla4=as.formula(paste("Score.Diff.from.Baseline ~ ", paste(c("Group", "(ID | PairID)"), collapse="+")))
   
   if (choice==1){
-
+    
     result=lmerTest::lmer(data=Analysis.Data, fmla1)
-
+    
   }else if (choice==2){
-
+    
     result=lmerTest::lmer(data=Analysis.Data, fmla2)
-
+    
   }else if (choice==3){
     
     result=lmerTest::lmer(data=Analysis.Data, fmla3)
@@ -1241,20 +1027,20 @@ lmer.analysis=function(AgeNum = 5, BaselineMobNum=20, BaselineActNum=20,
     result=lmerTest::lmer(data=Analysis.Data, fmla4)
     
   }
-
+  
   return(result)
   
 }
 
-word=lmer.analysis(ScoreNum=1, choice=4)
+word=lmer.analysis(ScoreNum=1, choice=1)
 
 summary(word)
 
-word=lmer.analysis(ScoreNum=2, choice=4)
+word=lmer.analysis(ScoreNum=2, choice=2)
 
 summary(word)
 
-word=lmer.analysis(ScoreNum=3, choice=4)
+word=lmer.analysis(ScoreNum=3, choice=2)
 
 summary(word)
 
@@ -1434,7 +1220,7 @@ for (i in 1:3){
   # Remove NAs (DS 06/23/2017)
   vname <- ScoreVarName[i]
   tmp1 <- Sort.NewStudyGroup[!is.na(Sort.NewStudyGroup[, vname]), ]
-
+  
   p1 <- ggplot(data=tmp1,
                aes(x=Days_afterOnset,
                    y=tmp1[,ScoreVarName[i]],
@@ -1448,8 +1234,8 @@ for (i in 1:3){
                         values = c("blue", 
                                    "green",
                                    "purple"),
-                        labels = c("Pre-assignment",
-                                   "Study", 
+                        labels = c("Before Assignment",
+                                   "Study",
                                    "At assignment")) +
     scale_x_continuous("Days After Stroke") +
     scale_y_continuous(paste(ScoreName[i], 
@@ -1463,21 +1249,31 @@ for (i in 1:3){
           legend.position = "top")
   
   tmp2 <- Sort.NewControlGroup[!is.na(Sort.NewControlGroup[, vname]), ]
-
- 
+  
+  
   
   p2 <- ggplot(data=tmp2,
                aes(x=Days_afterOnset,
                    y=tmp2[,ScoreVarName[i]],
                    group=ID)) +
-          geom_line() +
-          geom_point(col=tmp2[, "col.ggplot"]) +
-          ggtitle(paste(ScoreName[i], "Score by Days After Stroke for Control Group", sep=" ")) +
-          theme(plot.title = element_text(hjust = 0.5)) +
-          xlab("Days After Stroke") +
-          ylab(paste(ScoreName[i], "Score", sep=" ")) +
-          coord_cartesian(ylim=c(-30,130))
-
+    geom_line() +
+    geom_point(aes(x = Days_afterOnset,
+                   y = tmp2[,ScoreVarName[i]],
+                   group=col.ggplot,
+                   colour = col.ggplot)) +
+    scale_colour_manual("Assignment", 
+                        values = c("blue", 
+                                   "purple",
+                                   "red"),
+                        labels = c("Before Assignment",
+                                   "At Assignment",
+                                   "Control")) +    ggtitle(paste(ScoreName[i], "Score by Days After Stroke for Control Group", sep=" ")) +
+    xlab("Days After Stroke") +
+    ylab(paste(ScoreName[i], "Score", sep=" ")) +
+    coord_cartesian(ylim=c(-30,130)) +
+    theme(plot.title = element_text(hjust = 0.5),
+          legend.position = "top")
+  
   
   tiff(filename = paste("tmp/",
                         ScoreName[i],
@@ -1489,7 +1285,7 @@ for (i in 1:3){
        compression = "lzw+p")
   
   p3=grid.arrange(p1, p2)
-
+  
   print(p3)
   
   graphics.off()
@@ -1514,28 +1310,55 @@ for (i in 1:3){
                           & is.na(Interpolate.Master[,"PT.AM.PAC.Basic.Mobility.Score"])==0,]
   
   p1=ggplot(data=tmp1,
-               aes(x=Days_afterOnset, 
-                   y=tmp1[Interpolate.Master[,"ID"] %in% intersect(StudyGroupIDs, matchrow.final[,2]),ScoreVarName[i]], 
-                   group=ID)) +
-          geom_line() +    
-          geom_point(col=Interpolate.Master[Interpolate.Master[,"ID"] %in% intersect(StudyGroupIDs, matchrow.final[,2]), "col.ggplot"]) +
-          ggtitle(paste(ScoreName[i], "Score by Days After Stroke for Study Group (Matched)", sep=" ")) +
-          theme(plot.title = element_text(hjust = 0.5)) +
-          xlab("Days After Stroke") +
-          ylab(paste(ScoreName[i], "Score", sep=" ")) +
-          coord_cartesian(ylim=c(-30,130))  
+            aes(x=Days_afterOnset, 
+                y=tmp1[,ScoreVarName[i]], 
+                group=ID)) +
+    geom_line() +    
+    geom_point(aes(x = Days_afterOnset,
+                   y = tmp1[,ScoreVarName[i]],
+                   group=col.ggplot,
+                   colour = col.ggplot)) +
+    scale_colour_manual("Assignment", 
+                        values = c("blue", 
+                                   "green",
+                                   "purple"),
+                        labels = c("Before Assignment",
+                                   "Study",
+                                   "At assignment")) +
+    ggtitle(paste(ScoreName[i], "Score by Days After Stroke for Study Group (Matched)", sep=" ")) +
+    theme(plot.title = element_text(hjust = 0.5),
+          legend.position = "top") +
+    xlab("Days After Stroke") +
+    ylab(paste(ScoreName[i], "Score", sep=" ")) +
+    coord_cartesian(ylim=c(-30,130))  
 
-  p2=ggplot(data=Interpolate.Master[Interpolate.Master[,"ID"] %in% intersect(ControlGroupIDs, matchrow.final[,2]),],
-               aes(x=Days_afterOnset, 
-                   y=Interpolate.Master[Interpolate.Master[,"ID"] %in% intersect(ControlGroupIDs, matchrow.final[,2]),ScoreVarName[i]], 
-                   group=ID)) +
-          geom_line() +    
-          geom_point(col=Interpolate.Master[Interpolate.Master[,"ID"] %in% intersect(ControlGroupIDs, matchrow.final[,2]), "col.ggplot"]) +
-          ggtitle(paste(ScoreName[i], "Score by Days After Stroke for Control Group (Matched)", sep=" ")) +
-          theme(plot.title = element_text(hjust = 0.5)) +
-          xlab("Days After Stroke") +
-          ylab(paste(ScoreName[i], "Score", sep=" ")) +
-          coord_cartesian(ylim=c(-30,130))  
+  
+  tmp2=Interpolate.Master[(Interpolate.Master[,"ID"] %in% intersect(ControlGroupIDs, matchrow.final[,2])) 
+                          & is.na(Interpolate.Master[,"PT.AM.PAC.Basic.Mobility.Score"])==0,]
+  
+    
+  p2=ggplot(data=tmp2,
+            aes(x=Days_afterOnset, 
+                y=tmp2[,ScoreVarName[i]], 
+                group=ID)) +
+    geom_line() +    
+    geom_point(aes(x = Days_afterOnset,
+                   y = tmp2[,ScoreVarName[i]],
+                   group=col.ggplot,
+                   colour = col.ggplot)) +
+    scale_colour_manual("Assignment", 
+                        values = c("blue", 
+                                   "purple",
+                                   "red"),
+                        labels = c("Before Assignment",
+                                   "At Assignment",
+                                   "Control")) +
+    ggtitle(paste(ScoreName[i], "Score by Days After Stroke for Control Group (Matched)", sep=" ")) +
+    theme(plot.title = element_text(hjust = 0.5),
+          legend.position = "top") +
+    xlab("Days After Stroke") +
+    ylab(paste(ScoreName[i], "Score", sep=" ")) +
+    coord_cartesian(ylim=c(-30,130))  
   
   tiff(filename = paste("tmp/",
                         ScoreName[i],
@@ -1570,33 +1393,74 @@ Interpolate.Master[Interpolate.Master[,"DaysId"]>=4 & Interpolate.Master[,"Group
 
 for (i in 1:3){
   
-  print(ggplot(data=Interpolate.Master[Interpolate.Master[,"ID"] %in% intersect(StudyGroupIDs, matchrow.final[,2]),],
-               aes(x=Days.After.Assignment, 
-                   y=Interpolate.Master[Interpolate.Master[,"ID"] %in% intersect(StudyGroupIDs, matchrow.final[,2]),ScoreVarName[i]], 
-                   group=ID)) +
-          geom_line() +    
-          geom_point(col=Interpolate.Master[Interpolate.Master[,"ID"] %in% intersect(StudyGroupIDs, matchrow.final[,2]), "col.ggplot"]) +
-          ggtitle(paste(ScoreName[i], "Score by Days Since Group Assignment for Study Group (Matched)", sep=" ")) +
-          theme(plot.title = element_text(hjust = 0.5)) +
-          xlab("Days Since Group Assignment") +
-          ylab(paste(ScoreName[i], "Score", sep=" ")) +
-          coord_cartesian(ylim=c(-30,130)))  
+  tmp1=Interpolate.Master[(Interpolate.Master[,"ID"] %in% intersect(StudyGroupIDs, matchrow.final[,2])) 
+                          & is.na(Interpolate.Master[,"PT.AM.PAC.Basic.Mobility.Score"])==0,]
   
-}
-
-for (i in 1:3){
+  p1=ggplot(data=tmp1,
+            aes(x=Days.After.Assignment, 
+                y=tmp1[,ScoreVarName[i]], 
+                group=ID)) +
+    geom_line() +    
+    geom_point(aes(x = Days.After.Assignment,
+                   y = tmp1[,ScoreVarName[i]],
+                   group=col.ggplot,
+                   colour = col.ggplot)) +
+    scale_colour_manual("Assignment", 
+                        values = c("blue", 
+                                   "green",
+                                   "purple"),
+                        labels = c("Before Assignment",
+                                   "Study",
+                                   "At assignment")) +
+    ggtitle(paste(ScoreName[i], "Score by Days After Group Assignment for Study Group (Matched)", sep=" ")) +
+    theme(plot.title = element_text(hjust = 0.5),
+          legend.position = "top") +
+    xlab("Days After Stroke") +
+    ylab(paste(ScoreName[i], "Score", sep=" ")) +
+    coord_cartesian(ylim=c(-30,130))  
   
-  print(ggplot(data=Interpolate.Master[Interpolate.Master[,"ID"] %in% intersect(ControlGroupIDs, matchrow.final[,2]),],
-               aes(x=Days.After.Assignment, 
-                   y=Interpolate.Master[Interpolate.Master[,"ID"] %in% intersect(ControlGroupIDs, matchrow.final[,2]),ScoreVarName[i]], 
-                   group=ID)) +
-          geom_line() +    
-          geom_point(col=Interpolate.Master[Interpolate.Master[,"ID"] %in% intersect(ControlGroupIDs, matchrow.final[,2]), "col.ggplot"]) +
-          ggtitle(paste(ScoreName[i], "Score by Days Since Group Assignment for Control Group (Matched)", sep=" ")) +
-          theme(plot.title = element_text(hjust = 0.5)) +
-          xlab("Days Since Group Assignment") +
-          ylab(paste(ScoreName[i], "Score", sep=" ")) +
-          coord_cartesian(ylim=c(-30,130)))  
+  
+  tmp2=Interpolate.Master[(Interpolate.Master[,"ID"] %in% intersect(ControlGroupIDs, matchrow.final[,2])) 
+                          & is.na(Interpolate.Master[,"PT.AM.PAC.Basic.Mobility.Score"])==0,]
+  
+  
+  p2=ggplot(data=tmp2,
+            aes(x=Days.After.Assignment, 
+                y=tmp2[,ScoreVarName[i]], 
+                group=ID)) +
+    geom_line() +    
+    geom_point(aes(x = Days.After.Assignment,
+                   y = tmp2[,ScoreVarName[i]],
+                   group=col.ggplot,
+                   colour = col.ggplot)) +
+    scale_colour_manual("Assignment", 
+                        values = c("blue", 
+                                   "purple",
+                                   "red"),
+                        labels = c("Before Assignment",
+                                   "At Assignment",
+                                   "Control")) +
+    ggtitle(paste(ScoreName[i], "Score by Days After Group Assignment for Control Group (Matched)", sep=" ")) +
+    theme(plot.title = element_text(hjust = 0.5),
+          legend.position = "top") +
+    xlab("Days After Stroke") +
+    ylab(paste(ScoreName[i], "Score", sep=" ")) +
+    coord_cartesian(ylim=c(-30,130))  
+  
+  tiff(filename = paste("tmp/",
+                        ScoreName[i],
+                        "Score by Days After Group Assignment (Matched).tiff"),
+       height = 8,
+       width = 8,
+       units = 'in',
+       res = 300,
+       compression = "lzw+p")
+  
+  p3=grid.arrange(p1, p2)
+  
+  print(p3)
+  
+  graphics.off()
   
 }
 
@@ -1604,8 +1468,10 @@ for (i in 1:3){
 
 # plots histogram of baseline scores before and after matching ####
 
+
+
 for (i in 1:3){
-  
+    
   par(mfrow=c(2,2), mar=c(2,2,2,2))
   
   hist(NewMaster.One.Study[,paste("Baseline", ScoreName[i], sep=".")],
@@ -1654,17 +1520,15 @@ for (i in 1:3){
 
 par(mfrow=c(1,1), mar=c(5.1,4.1,4.1,2.1))
 
-
-
 # box and whisker plot for baseline scores ####
 
 
 plot1=ggplot(data = NewMaster.One,
-         aes(x=Group, y=Baseline.Mobility)) +
-    geom_boxplot() +
-    ylab("Baseline Mobility Score") +
-    ggtitle("Distribution of Baseline Mobility Scores by Group") +
-      theme(plot.title = element_text(hjust = 0.5))
+             aes(x=Group, y=Baseline.Mobility)) +
+  geom_boxplot() +
+  ylab("Baseline Mobility Score") +
+  ggtitle("Distribution of Baseline Mobility Scores by Group") +
+  theme(plot.title = element_text(hjust = 0.5))
 
 plot2=ggplot(data = NewMaster.One,
              aes(x=Group, y=Baseline.Activity)) +
@@ -1701,11 +1565,23 @@ plot6=ggplot(data = NewMaster.One[NewMaster.One[,"ID"] %in% matchrow.final[,2],]
   ggtitle("Distribution of Baseline Cognitive Scores by Group (Matched)") +
   theme(plot.title = element_text(hjust = 0.5))
 
+png(filename="tmp/Mobility Box Plot.png")
+
 multiplot(plot1, plot4, cols=2)
+
+dev.off()
+
+png(filename="tmp/Activity Box Plot.png")
 
 multiplot(plot2, plot5, cols=2)
 
+dev.off()
+
+png(filename="tmp/Cognitive Box Plot.png")
+
 multiplot(plot3, plot6, cols=2)
+
+dev.off()
 
 # point estimate plot for mortality ####
 
@@ -1716,12 +1592,12 @@ colnames(Mortality.Data)=c("Group", "Mortality", "Lower", "Upper")
 Mortality.Data[,"Group"]=c("No Matching", "Matching")
 
 tmp1=prop.test(sum(NewMaster.One.Control[,"Deceased_Y.N"]), 
-          length(NewMaster.One.Control[,"Deceased_Y.N"]), 
-          p=0.5)
+               length(NewMaster.One.Control[,"Deceased_Y.N"]), 
+               p=0.5)
 
 tmp2=prop.test(sum(match.subgroup[match.subgroup[,"Group"]=="Control Group","Deceased_Y.N"]), 
-          length(match.subgroup[match.subgroup[,"Group"]=="Control Group","Deceased_Y.N"]), 
-          p=0.5)
+               length(match.subgroup[match.subgroup[,"Group"]=="Control Group","Deceased_Y.N"]), 
+               p=0.5)
 
 Mortality.Data[1,"Mortality"]=as.numeric(tmp1$estimate)
 
@@ -1742,10 +1618,12 @@ ggplot(Mortality.Data,
   geom_errorbar(aes(ymin=Lower,
                     ymax=Upper,
                     width=0.1)) +
-  ggtitle("Mortality Rate With and Without Matching (No Facility Adjustor Matching)") +
+  ggtitle("Mortality Rate With and Without Matching") +
   theme(plot.title = element_text(hjust = 0.5))
 
 View(Mortality.Data)
+
+max(NewMaster[,"Baseline.Mobility"])
 
 ##############################ANALYSIS OF BINARY PATIENT OUTCOMES##################################
 
@@ -2845,7 +2723,7 @@ for (i in 1:3){
 1-(sum(is.na(NewMaster[NewMaster[,"DaysId"]==8,ScoreVarName[1]]))/length(NewMaster[NewMaster[,"DaysId"]==8,ScoreVarName[1]]))
 
 length(NewMaster[NewMaster[,"DaysId"]==8,ScoreVarName[1]])-sum(is.na(NewMaster[NewMaster[,"DaysId"]==8,ScoreVarName[1]]))
-n
+
 #find proportion of patients and number of patients with non missing values for
 #daysid 7
 1-(sum(is.na(NewMaster[NewMaster[,"DaysId"]==7,ScoreVarName[1]]))/length(NewMaster[NewMaster[,"DaysId"]==7,ScoreVarName[1]]))
