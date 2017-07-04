@@ -14,8 +14,6 @@
 ###is greater than the days after onset for DaysID==j
 ###Stroke Severity Number is missing for 126 patients
 
-
-
 # DATA PREPARATION####
 
 ###Upload Data in R

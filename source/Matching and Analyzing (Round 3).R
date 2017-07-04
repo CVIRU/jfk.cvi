@@ -2,357 +2,376 @@
 #Name: Matching and Analyzing (Round 3)                                            #
 #Author: Traymon Beavers                                                           #
 #Date Created: 6/29/2017                                                           #
-#Date Updated: 6/29/2017                                                           #
-#Purpose: To match the data based on gender, race, age, baseline average score and #
-#         type of stroke for mobility, activity, and cognitive ability and then    #
-#         perform analysis with matched data groups; 3rd round of data received    #
+#Date Updated: 7/3/2017                                                            #
+#Purpose: To perform analysis on the stroke recovery program data by matching      #
+#         patients in the more intensive group with patients in the less intensive #
+#         group and then conducting various statistical procedures with respect to #
+#         the matched pairs ; 3rd round of data received                           #
 #Functions: matching, follow.up.analysis, lmer.analysis, slope.analysis            #
 #                                                                                  #
 ####################################################################################
 
-# NOTES ABOUT DATA####
-###For some pairs of DaysId (i,j) where j>i, the days after onset for DaysID==i
-###is greater than the days after onset for DaysID==j
-###Stroke Severity Number is missing for 126 patients
-
-# DATA PREPARATION####
-
-###Upload Data in R
-OldMaster=read.csv("Data/DEID_All3.csv")
-
-###Delete extraneous varibale
-OldMaster=OldMaster[,-1]
-
-OldMaster=OldMaster[is.na(OldMaster[,"ID"])==0,]
-
-Master=OldMaster
-
-###Rename races other than Black or White as "Other" in the study and control groups
-
-Master[Master[,"Race"]==3,"New.Race"]="Black"
-
-Master[Master[,"Race"]==5,"New.Race"]="White"
-
-Master[Master[,"Race"]!=3 & Master[,"Race"]!=5,"New.Race"]="Other"
+# Notes about data ####
+### For some pairs of DaysId (i,j) where j>i, the days after onset for DaysID==i
+### is greater than the days after onset for DaysID==j
+### Stroke Severity Number is missing for 126 patients
+### ICH SSN ID 239 is 7
+### ID 214 has DIS FIM Cogn 85 and DIS FIM Total 158
 
 
-#Create consistent missing value indicators for each functional outcome
+# 1. Upload data ####
 
+# upload Data in R
+OldMaster = read.csv("Data/DEID_All3.csv")
+
+# delete extraneous varibale
+OldMaster = OldMaster[, -1]
+
+# only non-missing observations 
+# Note: need to check DEID and Combine Code to see why these are being introduced 
+# in the first place
+Master = OldMaster[is.na(OldMaster[,"ID"]) == 0, ]
+
+
+# rename races other than black or white as "Other"
+Master[Master[,"Race"] == 3, "New.Race"] = "Black"
+
+Master[Master[,"Race"] == 5, "New.Race"] = "White"
+
+Master[Master[,"Race"] != 3 & Master[,"Race"] != 5, "New.Race"]="Other"
+
+
+# Create consistent missing value indicators for each functional outcome ####
+
+# cycle through every observation in the master dataset
 for (i in 1:dim(Master)[1]){
   
-  if(Master[i,"PT.AM.PAC.Basic.Mobility.Score"]==9999
-     | Master[i,"PT.AM.PAC.Basic.Mobility.Score"]==8888
-     | is.na(Master[i,"PT.AM.PAC.Basic.Mobility.Score"])==1){
+  # change any missing mobility scores to NA
+  if(Master[i,"PT.AM.PAC.Basic.Mobility.Score"] == 9999
+     | Master[i,"PT.AM.PAC.Basic.Mobility.Score"] == 8888
+     | is.na(Master[i,"PT.AM.PAC.Basic.Mobility.Score"]) == 1){
     
-    Master[i,"PT.AM.PAC.Basic.Mobility.Score"]=NA
-    
-  }
-  
-  if(Master[i,"OT.AM.Daily.Activity.Score"]==9999
-     | Master[i,"OT.AM.Daily.Activity.Score"]==8888
-     | Master[i,"OT.AM.Daily.Activity.Score"]==9909
-     | is.na(Master[i,"OT.AM.Daily.Activity.Score"])==1){
-    
-    Master[i,"OT.AM.Daily.Activity.Score"]=NA
+    Master[i,"PT.AM.PAC.Basic.Mobility.Score"] = NA
     
   }
   
-  if(Master[i,"ST.AM.Applied.Cogn.Score"]==9999
-     | Master[i,"ST.AM.Applied.Cogn.Score"]==8888
-     | is.na(Master[i,"ST.AM.Applied.Cogn.Score"])==1){
+  # change any missing activity scores to NA
+  if(Master[i,"OT.AM.Daily.Activity.Score"] == 9999
+     | Master[i,"OT.AM.Daily.Activity.Score"] == 8888
+     | Master[i,"OT.AM.Daily.Activity.Score"] == 9909
+     | is.na(Master[i,"OT.AM.Daily.Activity.Score"]) == 1){
     
-    Master[i,"ST.AM.Applied.Cogn.Score"]=NA
+    Master[i,"OT.AM.Daily.Activity.Score"] = NA
+    
+  }
+  
+  # change any missing cognitive scores to NA
+  if(Master[i,"ST.AM.Applied.Cogn.Score"] == 9999
+     | Master[i,"ST.AM.Applied.Cogn.Score"] == 8888
+     | is.na(Master[i,"ST.AM.Applied.Cogn.Score"]) == 1){
+    
+    Master[i,"ST.AM.Applied.Cogn.Score"] = NA
     
   }
   
 }
 
+# Create a new dataset with only patients that eventually landed in relevant groups ####
 
-StudyGroupIDs=unique(Master[Master[,"Group"]=="Study Group","ID"])
+# create vector only containing patients who landed in the study group
+StudyGroupIDs = unique(Master[Master[, "Group"] == "Study Group", "ID"])
 
-ControlGroupIDs=unique(Master[Master[,"Group"]=="Control Group","ID"])
+# create a dataset only containing these patients
+Master.Study = Master[Master[, "ID"] %in% StudyGroupIDs, ]
 
-Sort.NewStudyGroup=Master[Master[,"ID"] %in% StudyGroupIDs,]
+# create vector only containing patients who landed in the control group
+ControlGroupIDs = unique(Master[Master[, "Group"] == "Control Group", "ID"])
 
-Sort.NewControlGroup=Master[Master[,"ID"] %in% ControlGroupIDs,]
+# create a dataset only containing these patients
+Master.Control = Master[Master[, "ID"] %in% ControlGroupIDs, ]
 
-###Combine both treatment groups back together
-NewMaster=rbind(Sort.NewStudyGroup, Sort.NewControlGroup)
+# combine both treatment groups back together
+NewMaster = rbind(Master.Study, Master.Control)
 
-NewMaster=NewMaster[order(NewMaster[,"ID"], NewMaster[,"DaysId"]),]
+# order the dataset first by the patient ID and then by their visit number
+NewMaster = NewMaster[order(NewMaster[, "ID"], NewMaster[, "DaysId"]), ]
 
-#delete cross overs
-NewMaster=NewMaster[-which(NewMaster[,"ID"] %in% intersect(StudyGroupIDs, ControlGroupIDs)),]
+# delete patients that somehow landed in both groups
+NewMaster = NewMaster[-which(NewMaster[, "ID"] %in% intersect(StudyGroupIDs, ControlGroupIDs)), ]
 
-###Create variable for days after assignment to group and baseline for each score
+# Create variables for days after assignment to group and important scores for each functional outcome ####
 
-NewMasterIDs=unique(NewMaster[,"ID"])
+# create a vector containing each ID in the dataset created above
+NewMasterIDs = unique(NewMaster[,"ID"])
 
-NewMaster[,"Days.After.At.Assignment"]=rep(NA,dim(NewMaster)[1])
-NewMaster[,"Baseline.Mobility"]=rep(NA,dim(NewMaster)[1])
-NewMaster[,"Baseline.Activity"]=rep(NA,dim(NewMaster)[1])
-NewMaster[,"Baseline.Cognitive"]=rep(NA,dim(NewMaster)[1])
-NewMaster[,"Discharge.Mobility"]=rep(NA,dim(NewMaster)[1])
-NewMaster[,"Discharge.Activity"]=rep(NA,dim(NewMaster)[1])
-NewMaster[,"Discharge.Cognitive"]=rep(NA,dim(NewMaster)[1])
+# initialize the variable for every observation's number of days after their stroke
+# when they were assigned to their treatment group
+NewMaster[, "Days.After.At.Assignment"] = rep(NA,dim(NewMaster)[1])
+
+# initialize the variable for every observation's score when they were first admitted
+NewMaster[, "Admission.Mobility"] = rep(NA,dim(NewMaster)[1])
+NewMaster[, "Admission.Activity"] = rep(NA,dim(NewMaster)[1])
+NewMaster[, "Admission.Cognitive"] = rep(NA,dim(NewMaster)[1])
+
+# initialize the variable for every observation's score when they were discharged
+NewMaster[, "Discharge.Mobility"] = rep(NA,dim(NewMaster)[1])
+NewMaster[, "Discharge.Activity"] = rep(NA,dim(NewMaster)[1])
+NewMaster[, "Discharge.Cognitive"] = rep(NA,dim(NewMaster)[1])
+
+# initialize the variable for every observation's score when they were assigned to their treatment group
+NewMaster[, "Baseline.Mobility"] = rep(NA,dim(NewMaster)[1])
+NewMaster[, "Baseline.Activity"] = rep(NA,dim(NewMaster)[1])
+NewMaster[, "Baseline.Cognitive"] = rep(NA,dim(NewMaster)[1])
 
 
-T=1
+# initialize a counter for scrolling through IDs
+C=1
 
+# cycle through every observation in the dataset
 for (i in 1:dim(NewMaster)[1]){
   
-  if (NewMaster[i,"ID"]!=NewMasterIDs[T] & T!=(length(NewMasterIDs))){
+  # if the ID for the current observation isn't equal to the ID for the previous ID, 
+  # increase the counter by one to move to the next ID
+  if (NewMaster[i,"ID"] != NewMasterIDs[C] & C != (length(NewMasterIDs))){
     
-    T=T+1
+    C = C+1
     
   }
     
-    NewMaster[i,"Days.After.At.Assignment"]=
-      NewMaster[NewMaster[,"DaysId"]==3 & NewMaster[,"ID"]==NewMasterIDs[T], "Days_afterOnset"]
-    
-    NewMaster[i,"Baseline.Mobility"]=NewMaster[NewMaster[,"DaysId"]==1 & NewMaster[,"ID"]==NewMasterIDs[T], "PT.AM.PAC.Basic.Mobility.Score"]
-    NewMaster[i,"Baseline.Activity"]=NewMaster[NewMaster[,"DaysId"]==1 & NewMaster[,"ID"]==NewMasterIDs[T], "OT.AM.Daily.Activity.Score"]
-    NewMaster[i,"Baseline.Cognitive"]=NewMaster[NewMaster[,"DaysId"]==1 & NewMaster[,"ID"]==NewMasterIDs[T], "ST.AM.Applied.Cogn.Score"]
-    
-    NewMaster[i,"Discharge.Mobility"]=NewMaster[NewMaster[,"DaysId"]==2 & NewMaster[,"ID"]==NewMasterIDs[T], "PT.AM.PAC.Basic.Mobility.Score"]
-    NewMaster[i,"Discharge.Activity"]=NewMaster[NewMaster[,"DaysId"]==2 & NewMaster[,"ID"]==NewMasterIDs[T], "OT.AM.Daily.Activity.Score"]
-    NewMaster[i,"Discharge.Cognitive"]=NewMaster[NewMaster[,"DaysId"]==2 & NewMaster[,"ID"]==NewMasterIDs[T], "ST.AM.Applied.Cogn.Score"]
-    
+  # calculate number of days after their stroke when they were assigned to their treatment group
+  # for the current observation 
+  NewMaster[i,"Days.After.At.Assignment"] =
+      NewMaster[NewMaster[,"DaysId"] == 3 & NewMaster[,"ID"] == NewMasterIDs[C], "Days_afterOnset"]
+
+  # calculate score when they were first admitted for each outcome for current observation
+  NewMaster[i, "Admission.Mobility"] = NewMaster[NewMaster[, "DaysId"] == 1 & NewMaster[, "ID"] == NewMasterIDs[C], "PT.AM.PAC.Basic.Mobility.Score"]
+  NewMaster[i, "Admission.Activity"] = NewMaster[NewMaster[, "DaysId"] == 1 & NewMaster[, "ID"] == NewMasterIDs[C], "OT.AM.Daily.Activity.Score"]
+  NewMaster[i, "Admission.Cognitive"] = NewMaster[NewMaster[, "DaysId"] == 1 & NewMaster[, "ID"] == NewMasterIDs[C], "ST.AM.Applied.Cogn.Score"]
+
+  # calculate score when they were discharged for each outcome for current observation  
+  NewMaster[i, "Discharge.Mobility"] = NewMaster[NewMaster[, "DaysId"] == 2 & NewMaster[, "ID"] == NewMasterIDs[C], "PT.AM.PAC.Basic.Mobility.Score"]
+  NewMaster[i, "Discharge.Activity"] = NewMaster[NewMaster[, "DaysId"] == 2 & NewMaster[, "ID"] == NewMasterIDs[C], "OT.AM.Daily.Activity.Score"]
+  NewMaster[i, "Discharge.Cognitive"] = NewMaster[NewMaster[, "DaysId"] == 2 & NewMaster[, "ID"] == NewMasterIDs[C], "ST.AM.Applied.Cogn.Score"]
+
+  # calculate score when they were assigned to their treatment group for each outcome for current observation
+  NewMaster[i, "Baseline.Mobility"] = NewMaster[NewMaster[, "DaysId"] == 3 & NewMaster[, "ID"] == NewMasterIDs[C], "PT.AM.PAC.Basic.Mobility.Score"]
+  NewMaster[i, "Baseline.Activity"] = NewMaster[NewMaster[, "DaysId"] == 3 & NewMaster[, "ID"] == NewMasterIDs[C], "OT.AM.Daily.Activity.Score"]
+  NewMaster[i, "Baseline.Cognitive"] = NewMaster[NewMaster[, "DaysId"] == 3 & NewMaster[, "ID"] == NewMasterIDs[C], "ST.AM.Applied.Cogn.Score"]
     
 }
   
+# calculate the number of days after group assignement for each observation
+NewMaster[,"Days.After.Assignment"] =
+  NewMaster[,"Days_afterOnset"] - NewMaster[,"Days.After.At.Assignment"]
 
-NewMaster[,"Days.After.Assignment"]=
-  NewMaster[,"Days_afterOnset"]-NewMaster[,"Days.After.At.Assignment"]
-
-#create a dataset with one observation for each patient
-NewMaster.One=NewMaster[NewMaster[,"DaysId"]==3,]
+# create a dataset with one observation for each patient
+NewMaster.One = NewMaster[NewMaster[,"DaysId"] == 3,]
 
 # create datasets with one observation for each group
-NewMaster.One.Study=NewMaster.One[NewMaster.One[,"Group"]=="Study Group",]
-NewMaster.One.Control=NewMaster.One[NewMaster.One[,"Group"]=="Control Group",]
+NewMaster.One.Study = NewMaster.One[NewMaster.One[, "Group"] == "Study Group", ]
+NewMaster.One.Control = NewMaster.One[NewMaster.One[, "Group"] == "Control Group", ]
 
-
-
-# Initialize these vectors for later use
+# initialize vectors for easy reference to each functional outcome
 ScoreName=c("Mobility", "Activity", "Cognitive")
 ScoreVarName=c("PT.AM.PAC.Basic.Mobility.Score", "OT.AM.Daily.Activity.Score", "ST.AM.Applied.Cogn.Score")
 
 
-CHECK THAT THE DATA IS IN CORRECT RANGES####
+# # 2. Check that the data is in the correct ranges ####
+# 
+# # check education level range
+# NewMaster[which((NewMaster[,"Education.Level"] > 40 | NewMaster[,"Education.Level"] < 0) & NewMaster[,"Education.Level"] != 9999), "Education.Level"]
+# 
+# # check Stroke Severity Numbers
+# NewMaster[which((NewMaster[, "ACHosp.Stroke.Severity.Number_NIHSS"] > 42 | NewMaster[, "ACHosp.Stroke.Severity.Number_NIHSS"]<0) &
+#                   NewMaster[, "ACHosp.Stroke.Severity.Number_NIHSS"] != 9999), "ACHosp.Stroke.Severity.Number_NIHSS"]
+# 
+# NewMaster[which((NewMaster[, "ACHosp.Stroke.Severity.Number_ICH"] > 6 | NewMaster[, "ACHosp.Stroke.Severity.Number_ICH"]<0) &
+#                   NewMaster[, "ACHosp.Stroke.Severity.Number_ICH"] != 9999), c("ID", "ACHosp.Stroke.Severity.Number_ICH")]
+# 
+# NewMaster[which((NewMaster[, "ACHosp.Stroke.Severity.Number_HH"] > 5 | NewMaster[, "ACHosp.Stroke.Severity.Number_HH"]<0) &
+#                   NewMaster[, "ACHosp.Stroke.Severity.Number_HH"] != 9999), c("ID", "ACHosp.Stroke.Severity.Number_HH")]
+# 
+# # check Facility Adjustor
+# NewMaster[which((NewMaster[, "ARHosp.JRI.Facility.Adjustor"] > 110 | NewMaster[, "ARHosp.JRI.Facility.Adjustor"] < 101) &
+#                   NewMaster[, "ARHosp.JRI.Facility.Adjustor"] != 9999), c("ID", "ARHosp.JRI.Facility.Adjustor")]
+# 
+# # check FIM Scores
+# NewMaster[which((NewMaster[, "ARHosp.JRI.Adm.FIM.Motor"] > 91 | NewMaster[, "ARHosp.JRI.Adm.FIM.Motor"] < 12) &
+#                   NewMaster[, "ARHosp.JRI.Adm.FIM.Motor"] != 9999), "ARHosp.JRI.Adm.FIM.Motor"]
+# 
+# NewMaster[which((NewMaster[, "ARHosp.JRI.Adm.FIM.Cogn"] > 35 | NewMaster[, "ARHosp.JRI.Adm.FIM.Cogn"] < 0) &
+#                   NewMaster[, "ARHosp.JRI.Adm.FIM.Cogn"] != 9999), "ARHosp.JRI.Adm.FIM.Cogn"]
+# 
+# NewMaster[which((NewMaster[, "ARHosp.JRI.Adm.FIM.Total"] > 126 | NewMaster[, "ARHosp.JRI.Adm.FIM.Total"] < 17) &
+#                   NewMaster[, "ARHosp.JRI.Adm.FIM.Total"] != 9999), "ARHosp.JRI.Adm.FIM.Total"]
+# 
+# NewMaster[which((NewMaster[, "ARHosp.JRI.Dis.FIM.Motor"]>91 | NewMaster[, "ARHosp.JRI.Dis.FIM.Motor"] < 12) &
+#                   NewMaster[, "ARHosp.JRI.Dis.FIM.Motor"] != 9999), "ARHosp.JRI.Dis.FIM.Motor"]
+# 
+# NewMaster[which((NewMaster[, "ARHosp.JRI.Dis.FIM.Cogn"] > 35 | NewMaster[, "ARHosp.JRI.Dis.FIM.Cogn"] < 0) &
+#                   NewMaster[, "ARHosp.JRI.Dis.FIM.Cogn"] != 9999), c("ID", "ARHosp.JRI.Dis.FIM.Cogn")]
+# 
+# NewMaster[which((NewMaster[, "ARHosp.JRI.Dis.FIM.Total"] > 126 | NewMaster[, "ARHosp.JRI.Dis.FIM.Total"] < 17) &
+#                   NewMaster[, "ARHosp.JRI.Dis.FIM.Total"] != 9999), c("ID", "ARHosp.JRI.Dis.FIM.Total")]
+# 
+# # check height, weight, BMI, SBPHTN, DBPHTN, Fast-Nonfasting LDL, and HbA1c
+# NewMaster[which((NewMaster[, "Height"] > 240 | NewMaster[, "Height"] < 120) &
+#                   NewMaster[, "Height"] != 9999 & NewMaster[, "Height"] != 8888),
+#           c("ID", "Height") ]
+# 
+# NewMaster[which((NewMaster[, "Weight"] > 230 | NewMaster[, "Weight"] < 29) &
+#                   NewMaster[, "Weight"] != 9999 & NewMaster[, "Weight"] != 8888),
+#           c("ID", "Weight") ]
+# 
+# NewMaster[which((NewMaster[, "BMI"] > 60 | NewMaster[,"BMI"] < 10) &
+#                   NewMaster[, "BMI"] != 9999 & NewMaster[,"BMI"] != 8888),
+#           c("ID", "BMI") ]
+# 
+# NewMaster[which((NewMaster[, "SBP.HTN"] > 250 | NewMaster[, "SBP.HTN"] < 60) &
+#                     NewMaster[, "SBP.HTN"] != 9999 & NewMaster[, "SBP.HTN"] != 8888),
+#           c("ID", "SBP.HTN") ]
+# 
+# NewMaster[which((NewMaster[, "DBP.HTN"] > 160 | NewMaster[, "DBP.HTN"] < 20) &
+#                   NewMaster[, "DBP.HTN"] != 9999 & NewMaster[, "DBP.HTN"] != 8888),
+#           c("ID", "DBP.HTN") ]
+# 
+# NewMaster[which((NewMaster[, "Fast.Nonfasting.LDL"] > 300 | NewMaster[, "Fast.Nonfasting.LDL"] < 20) &
+#                   NewMaster[, "Fast.Nonfasting.LDL"] != 9999 & NewMaster[, "Fast.Nonfasting.LDL"] != 8888),
+#           c("ID", "Fast.Nonfasting.LDL") ]
+# 
+# NewMaster[which((NewMaster[, "HbA1c"] > 20 | NewMaster[, "HbA1c"] < 0) &
+#                   NewMaster[, "HbA1c"] != 9999 & NewMaster[, "HbA1c"] != 8888),
+#           c("ID", "HbA1c") ]
+# 
+# # check TotNoOfMod_HighRisk
+# NewMaster[which((NewMaster[, "TotNoOfMod_HighRisk"] > 11 | NewMaster[, "TotNoOfMod_HighRisk"] < 0) &
+#                   NewMaster[, "TotNoOfMod_HighRisk"] != 9999 & NewMaster[, "TotNoOfMod_HighRisk"] != 8888),
+#           c("ID", "TotNoOfMod_HighRisk")]
+# 
+# # check MoCa score
+# NewMaster[which((NewMaster[, "MoCA.Score"] > 30 | NewMaster[, "MoCA.Score"] < 0) &
+#                   NewMaster[, "MoCA.Score"] != 9999 & NewMaster[, "MoCA.Score"] != 8888),
+#           c("ID", "MoCA.Score")]
+# 
+# # check functional outcome scores and minutes
+# NewMaster[which((NewMaster[, "ModRankinScore"] > 6 | NewMaster[, "ModRankinScore"] < 0) &
+#                   NewMaster[, "ModRankinScore"] != 9999 & NewMaster[, "ModRankinScore"] != 8888),
+#           c("ID", "ModRankinScore")]
+# 
+# NewMaster[which((NewMaster[, "PT.AM.PAC.Basic.Mobility.Score"] > 130 | NewMaster[, "PT.AM.PAC.Basic.Mobility.Score"] < -30) &
+#                   NewMaster[,"PT.AM.PAC.Basic.Mobility.Score"] != 9999 & NewMaster[,"PT.AM.PAC.Basic.Mobility.Score"] != 8888),
+#           c("ID", "PT.AM.PAC.Basic.Mobility.Score")]
+# 
+# NewMaster[which((NewMaster[, "OT.AM.Daily.Activity.Score"] > 130 | NewMaster[, "OT.AM.Daily.Activity.Score"] < -30) &
+#                   NewMaster[, "OT.AM.Daily.Activity.Score"] != 9999 & NewMaster[, "OT.AM.Daily.Activity.Score"] != 8888),
+#           c("ID", "OT.AM.Daily.Activity.Score")]
+# 
+# NewMaster[which((NewMaster[,"ST.AM.Applied.Cogn.Score"] > 130 | NewMaster[, "ST.AM.Applied.Cogn.Score"] < -30) &
+#                   NewMaster[,"ST.AM.Applied.Cogn.Score"] != 9999 & NewMaster[, "ST.AM.Applied.Cogn.Score"] != 8888),
+#           c("ID", "ST.AM.Applied.Cogn.Score")]
+# 
+# NewMaster[which((NewMaster[, "Cardiovascular.Group.SessionsPerWeek"] > 5 | NewMaster[, "Cardiovascular.Group.SessionsPerWeek"] < 0) &
+#                   NewMaster[, "Cardiovascular.Group.SessionsPerWeek"] != 9999 & NewMaster[, "Cardiovascular.Group.SessionsPerWeek"] != 8888),
+#           c("ID", "Cardiovascular.Group.SessionsPerWeek")]
+# 
+# NewMaster[which((NewMaster[, "Cardiovascular.Group.Tot.Sessions"] > 50 | NewMaster[, "Cardiovascular.Group.Tot.Sessions"] < 0) &
+#                   NewMaster[, "Cardiovascular.Group.Tot.Sessions"] != 9999 & NewMaster[, "Cardiovascular.Group.Tot.Sessions"] != 8888),
+#           c("ID", "Cardiovascular.Group.Tot.Sessions")]
+# 
+# NewMaster[which((NewMaster[, "Cardiovascular.Group.Intensity.Mets."] > 10 | NewMaster[, "Cardiovascular.Group.Intensity.Mets."] < 0) &
+#                   NewMaster[, "Cardiovascular.Group.Intensity.Mets."] != 9999 & NewMaster[, "Cardiovascular.Group.Intensity.Mets."] != 8888),
+#           c("ID", "Cardiovascular.Group.Intensity.Mets.")]
+# 
+# NewMaster[which((NewMaster[, "Cardiovascular.Group.Tot.Mins"] > 60 | NewMaster[, "Cardiovascular.Group.Tot.Mins"] < 0) &
+#                   NewMaster[, "Cardiovascular.Group.Tot.Mins"] != 9999 & NewMaster[, "Cardiovascular.Group.Tot.Mins"] != 8888),
+#           c("ID", "Cardiovascular.Group.Tot.Mins")]
+# 
+# NewMaster[which((NewMaster[, "Cardiovascular.Group.Met.Mins"] > 500 | NewMaster[, "Cardiovascular.Group.Met.Mins"] < 0) &
+#                   NewMaster[, "Cardiovascular.Group.Met.Mins"] != 9999 & NewMaster[, "Cardiovascular.Group.Met.Mins"] != 8888),
+#           c("ID", "Cardiovascular.Group.Met.Mins")]
+# 
+# NewMaster[which((NewMaster[, "CVG.Freq"] > 3 | NewMaster[, "CVG.Freq"] < 1) &
+#                   NewMaster[, "CVG.Freq"] != 9999 & NewMaster[, "CVG.Freq"] != 8888),
+#           c("ID", "CVG.Freq")]
+# 
+# NewMaster[which((NewMaster[, "CVG.Total"] > 36 | NewMaster[, "CVG.Total"] < 0) &
+#                   NewMaster[, "CVG.Total"] != 9999 & NewMaster[, "CVG.Total"] != 8888),
+#           c("ID", "CVG.Total")]
 
-###Check education level range
+# 3. Interpolation ####
 
-NewMaster[which((NewMaster[,"Education.Level"]>40 | NewMaster[,"Education.Level"]<0) & NewMaster[,"Education.Level"]!=9999), "Education.Level"]
-
-###Check Stroke Severity Numbers: ICH 239 is 7
-
-NewMaster[which((NewMaster[,"ACHosp.Stroke.Severity.Number_NIHSS"]>42 | NewMaster[,"ACHosp.Stroke.Severity.Number_NIHSS"]<0) &
-                  NewMaster[,"ACHosp.Stroke.Severity.Number_NIHSS"]!=9999), "ACHosp.Stroke.Severity.Number_NIHSS"]
-
-NewMaster[which((NewMaster[,"ACHosp.Stroke.Severity.Number_ICH"]>6 | NewMaster[,"ACHosp.Stroke.Severity.Number_ICH"]<0) &
-                  NewMaster[,"ACHosp.Stroke.Severity.Number_ICH"]!=9999), c("ID", "ACHosp.Stroke.Severity.Number_ICH")]
-
-NewMaster[which((NewMaster[,"ACHosp.Stroke.Severity.Number_HH"]>5 | NewMaster[,"ACHosp.Stroke.Severity.Number_HH"]<0) &
-                  NewMaster[,"ACHosp.Stroke.Severity.Number_HH"]!=9999), c("ID", "ACHosp.Stroke.Severity.Number_HH")]
-
-###Check Facility Adjustor
-
-NewMaster[which((NewMaster[,"ARHosp.JRI.Facility.Adjustor"]>110 | NewMaster[,"ARHosp.JRI.Facility.Adjustor"]<101) &
-                  NewMaster[,"ARHosp.JRI.Facility.Adjustor"]!=9999), c("ID", "ARHosp.JRI.Facility.Adjustor")]
-
-###Check FIM Scores
-
-NewMaster[which((NewMaster[,"ARHosp.JRI.Adm.FIM.Motor"]>91 | NewMaster[,"ARHosp.JRI.Adm.FIM.Motor"]<12) &
-                  NewMaster[,"ARHosp.JRI.Adm.FIM.Motor"]!=9999), "ARHosp.JRI.Adm.FIM.Motor"]
-
-NewMaster[which((NewMaster[,"ARHosp.JRI.Adm.FIM.Cogn"]>35 | NewMaster[,"ARHosp.JRI.Adm.FIM.Cogn"]<0) &
-                  NewMaster[,"ARHosp.JRI.Adm.FIM.Cogn"]!=9999), "ARHosp.JRI.Adm.FIM.Cogn"]
-
-NewMaster[which((NewMaster[,"ARHosp.JRI.Adm.FIM.Total"]>126 | NewMaster[,"ARHosp.JRI.Adm.FIM.Total"]<17) &
-                  NewMaster[,"ARHosp.JRI.Adm.FIM.Total"]!=9999), "ARHosp.JRI.Adm.FIM.Total"]
-
-NewMaster[which((NewMaster[,"ARHosp.JRI.Dis.FIM.Motor"]>91 | NewMaster[,"ARHosp.JRI.Dis.FIM.Motor"]<12) &
-                  NewMaster[,"ARHosp.JRI.Dis.FIM.Motor"]!=9999), "ARHosp.JRI.Dis.FIM.Motor"]
-
-# 214 has Cogn 85 and Total 158
-
-NewMaster[which((NewMaster[,"ARHosp.JRI.Dis.FIM.Cogn"]>35 | NewMaster[,"ARHosp.JRI.Dis.FIM.Cogn"]<0) &
-                  NewMaster[,"ARHosp.JRI.Dis.FIM.Cogn"]!=9999), c("ID", "ARHosp.JRI.Dis.FIM.Cogn")]
-
-NewMaster[which((NewMaster[,"ARHosp.JRI.Dis.FIM.Total"]>126 | NewMaster[,"ARHosp.JRI.Dis.FIM.Total"]<17) &
-                  NewMaster[,"ARHosp.JRI.Dis.FIM.Total"]!=9999), c("ID","ARHosp.JRI.Dis.FIM.Total")]
-
-
-###Check height, weight, BMI, SBPHTN, DBPHTN, Fast-Nonfasting LDL, and HbA1c
-
-NewMaster[which((NewMaster[,"Height"]>240 | NewMaster[,"Height"]<120) &
-                  NewMaster[,"Height"]!=9999 & NewMaster[,"Height"]!=8888),
-          c("ID", "Height") ]
-
-NewMaster[which((NewMaster[,"Weight"]>230 | NewMaster[,"Weight"]<29) &
-                  NewMaster[,"Weight"]!=9999 & NewMaster[,"Weight"]!=8888),
-          c("ID", "Weight") ]
-
-NewMaster[which((NewMaster[,"BMI"]>60 | NewMaster[,"BMI"]<10) &
-                  NewMaster[,"BMI"]!=9999 & NewMaster[,"BMI"]!=8888),
-          c("ID", "BMI") ]
-
-NewMaster[which((NewMaster[,"SBP.HTN"]>250 | NewMaster[,"SBP.HTN"]<60) &
-                    NewMaster[,"SBP.HTN"]!=9999 & NewMaster[,"SBP.HTN"]!=8888),
-          c("ID", "SBP.HTN") ]
-
-NewMaster[which((NewMaster[,"DBP.HTN"]>160 | NewMaster[,"DBP.HTN"]<20) &
-                  NewMaster[,"DBP.HTN"]!=9999 & NewMaster[,"DBP.HTN"]!=8888),
-          c("ID", "DBP.HTN") ]
-
-NewMaster[which((NewMaster[,"Fast.Nonfasting.LDL"]>300 | NewMaster[,"Fast.Nonfasting.LDL"]<20) &
-                  NewMaster[,"Fast.Nonfasting.LDL"]!=9999 & NewMaster[,"Fast.Nonfasting.LDL"]!=8888),
-          c("ID", "Fast.Nonfasting.LDL") ]
-
-NewMaster[which((NewMaster[,"HbA1c"]>20 | NewMaster[,"HbA1c"]<0) &
-                  NewMaster[,"HbA1c"]!=9999 & NewMaster[,"HbA1c"]!=8888),
-          c("ID", "HbA1c") ]
-
-
-###Check TotNoOfMod_HighRisk
-
-NewMaster[which((NewMaster[,"TotNoOfMod_HighRisk"]>11 | NewMaster[,"TotNoOfMod_HighRisk"]<0) &
-                  NewMaster[,"TotNoOfMod_HighRisk"]!=9999 & NewMaster[,"HbA1c"]!=8888),
-          c("ID", "TotNoOfMod_HighRisk")]
-
-###Check MoCa score
-
-NewMaster[which((NewMaster[,"MoCA.Score"]>30 | NewMaster[,"MoCA.Score"]<0) &
-                  NewMaster[,"MoCA.Score"]!=9999 & NewMaster[,"MoCA.Score"]!=8888),
-          c("ID", "MoCA.Score")]
-
-###Check functional outcome scores and minutes: 231 Activity Score is 180
-
-NewMaster[which((NewMaster[,"ModRankinScore"]>6 | NewMaster[,"ModRankinScore"]<0) &
-                  NewMaster[,"ModRankinScore"]!=9999 & NewMaster[,"ModRankinScore"]!=8888),
-          c("ID", "ModRankinScore")]
-
-NewMaster[which((NewMaster[,"PT.AM.PAC.Basic.Mobility.Score"]>130 | NewMaster[,"PT.AM.PAC.Basic.Mobility.Score"]< -30) &
-                  NewMaster[,"PT.AM.PAC.Basic.Mobility.Score"]!=9999 & NewMaster[,"PT.AM.PAC.Basic.Mobility.Score"]!=8888),
-          c("ID", "PT.AM.PAC.Basic.Mobility.Score")]
-
-NewMaster[which((NewMaster[,"OT.AM.Daily.Activity.Score"]>130 | NewMaster[,"OT.AM.Daily.Activity.Score"]< -30) &
-                  NewMaster[,"OT.AM.Daily.Activity.Score"]!=9999 & NewMaster[,"OT.AM.Daily.Activity.Score"]!=8888),
-          c("ID", "OT.AM.Daily.Activity.Score")]
-
-NewMaster[which((NewMaster[,"ST.AM.Applied.Cogn.Score"]>130 | NewMaster[,"ST.AM.Applied.Cogn.Score"]< -30) &
-                  NewMaster[,"ST.AM.Applied.Cogn.Score"]!=9999 & NewMaster[,"ST.AM.Applied.Cogn.Score"]!=8888),
-          c("ID", "ST.AM.Applied.Cogn.Score")]
-
-NewMaster[which((NewMaster[,"Cardiovascular.Group.SessionsPerWeek"]>5 | NewMaster[,"Cardiovascular.Group.SessionsPerWeek"]<0) &
-                  NewMaster[,"Cardiovascular.Group.SessionsPerWeek"]!=9999 & NewMaster[,"Cardiovascular.Group.SessionsPerWeek"]!=8888),
-          c("ID", "Cardiovascular.Group.SessionsPerWeek")]
-
-NewMaster[which((NewMaster[,"Cardiovascular.Group.Tot.Sessions"]>50 | NewMaster[,"Cardiovascular.Group.Tot.Sessions"]<0) &
-                  NewMaster[,"Cardiovascular.Group.Tot.Sessions"]!=9999 & NewMaster[,"Cardiovascular.Group.Tot.Sessions"]!=8888),
-          c("ID", "Cardiovascular.Group.Tot.Sessions")]
-
-NewMaster[which((NewMaster[,"Cardiovascular.Group.Intensity.Mets."]>10 | NewMaster[,"Cardiovascular.Group.Intensity.Mets."]<0) &
-                  NewMaster[,"Cardiovascular.Group.Intensity.Mets."]!=9999 & NewMaster[,"Cardiovascular.Group.Intensity.Mets."]!=8888),
-          c("ID", "Cardiovascular.Group.Intensity.Mets.")]
-
-NewMaster[which((NewMaster[,"Cardiovascular.Group.Tot.Mins"]>60 | NewMaster[,"Cardiovascular.Group.Tot.Mins"]<0) &
-                  NewMaster[,"Cardiovascular.Group.Tot.Mins"]!=9999 & NewMaster[,"Cardiovascular.Group.Tot.Mins"]!=8888),
-          c("ID", "Cardiovascular.Group.Tot.Mins")]
-
-NewMaster[which((NewMaster[,"Cardiovascular.Group.Met.Mins"]>500 | NewMaster[,"Cardiovascular.Group.Met.Mins"]<0) &
-                  NewMaster[,"Cardiovascular.Group.Met.Mins"]!=9999 & NewMaster[,"Cardiovascular.Group.Met.Mins"]!=8888),
-          c("ID", "Cardiovascular.Group.Met.Mins")]
-
-NewMaster[which((NewMaster[,"CVG.Freq"]>3 | NewMaster[,"CVG.Freq"]<1) &
-                  NewMaster[,"CVG.Freq"]!=9999 & NewMaster[,"CVG.Freq"]!=8888),
-          c("ID", "CVG.Freq")]
-
-NewMaster[which((NewMaster[,"CVG.Total"]>36 | NewMaster[,"CVG.Total"]<0) &
-                  NewMaster[,"CVG.Total"]!=9999 & NewMaster[,"CVG.Total"]!=8888),
-          c("ID", "CVG.Total")]
-
-
-
-# INTERPOLATION####
-
-#create vector of IDs in NewMaster
-NewMasterIDs=NewMaster.One[,"ID"]
-
-#intialize Interpolate.Master
+#intialize dataset with interpolated missing values
 Interpolate.Master=NewMaster
 
-#cycle through IDs in NewMaster
+# cycle through IDs in NewMaster
 for (j in 1:length(NewMasterIDs)){
   
-  ###find which follow ups are logged for the ID
+  # create a vector called DAYSID to store which follow ups are logged for which ID ####
   
-  #initialize DAYSID
-  DAYSID=0
+  # initialize DAYSID
+  DAYSID = 0
   
-  #cycle through possible DaysId observations
+  # cycle through possible DaysId observations
   for (i in 1:8){
     
-    if(length(Interpolate.Master[Interpolate.Master[,"ID"]==NewMasterIDs[j] & 
-                                 Interpolate.Master[,"DaysId"]==i, 
-                                 "PT.AM.PAC.Basic.Mobility.Score"])>0){
+    # add this DaysId observation to the DAYSID vecotr if the current ID has it
+    if(length(Interpolate.Master[Interpolate.Master[,"ID"] == NewMasterIDs[j] & 
+                                 Interpolate.Master[,"DaysId"] == i, 
+                                 "PT.AM.PAC.Basic.Mobility.Score"]) > 0){
       
-      DAYSID=c(DAYSID,i)
+      DAYSID=c(DAYSID, i)
+      
+    }
+    
+  }
+  
+  # delete the initial 0
+  DAYSID = DAYSID[-1]
+  
+  # create a vector called first to store every DaysId for which the next DaysId has a missing observation ####
+  
+  # initialize first
+  first = 0
+  
+  # cycle through the logged DaysIds for the given ID (first to penultimate)
+  for (i in 1:(length(DAYSID) - 1)){
+    
+    # add this DaysId to the first vector check if the measurement for the current DaysId is 
+    # nonmissing and the measurement for the next DaysId is missing
+    if(is.na(Interpolate.Master[Interpolate.Master[, "ID"] == NewMasterIDs[j] & 
+                                Interpolate.Master[, "DaysId"] == DAYSID[i], 
+                                "PT.AM.PAC.Basic.Mobility.Score"]) == 0 & 
+       is.na(Interpolate.Master[Interpolate.Master[, "ID"] == NewMasterIDs[j] &
+                                Interpolate.Master[, "DaysId"] == DAYSID[i+1], 
+                                "PT.AM.PAC.Basic.Mobility.Score"]) == 1){
+      
+      first=c(first, DAYSID[i])
       
     }
     
   }
   
   #delete the initial 0
-  DAYSID=DAYSID[-1]
+  first = first[-1]
   
-  ###find the the follow up before the first instance of missing values in follow ups
-  
-  #initialize first
-  first=0
-  
-  #cycle through the logged DaysIds for the given ID (first to penultimate)
-  for (i in 1:(length(DAYSID)-1)){
-    
-    #check if the measurement for the current DaysId is nonmissing and the
-    #the measurement for the next DaysId is missing
-    if(is.na(Interpolate.Master[Interpolate.Master[,"ID"]==NewMasterIDs[j] & 
-                                Interpolate.Master[,"DaysId"]==DAYSID[i] , 
-                                "PT.AM.PAC.Basic.Mobility.Score"])==0 & 
-       is.na(Interpolate.Master[Interpolate.Master[,"ID"]==NewMasterIDs[j] &
-                                Interpolate.Master[,"DaysId"]==DAYSID[i+1], 
-                                "PT.AM.PAC.Basic.Mobility.Score"])==1){
-      
-      #add this DaysId to the first vector
-      first=c(first,DAYSID[i])
-      
-    }
-    
-  }
-  
-  #delete the 0
-  first=first[-1]
-  
-  ###find the follow up after the last instance of missing values in follow ups
+  # create a vector called last to store every DaysId for which the previous DaysId has a missing observation ####
   
   #initialize last
-  last=0
+  last = 0
   
   #cycle through the logged DaysIds for the given ID (second to last)
   for (i in 2:length(DAYSID)){
     
-    #check if the measurement for the current DaysId is nonmissing and the
-    #the measurement for the previous DaysId is missing
-    if(is.na(Interpolate.Master[Interpolate.Master[,"ID"]==NewMasterIDs[j] & 
-                                Interpolate.Master[,"DaysId"]==DAYSID[i], 
-                                "PT.AM.PAC.Basic.Mobility.Score"])==0 & 
-       is.na(Interpolate.Master[Interpolate.Master[,"ID"]==NewMasterIDs[j] & 
-                                Interpolate.Master[,"DaysId"]==DAYSID[i-1], 
-                                "PT.AM.PAC.Basic.Mobility.Score"])==1){
+    # add this DaysId to the last vector check if the measurement for the current DaysId is 
+    # nonmissing and the measurement for the next DaysId is missing
+    if(is.na(Interpolate.Master[Interpolate.Master[, "ID"] == NewMasterIDs[j] & 
+                                Interpolate.Master[, "DaysId"] == DAYSID[i], 
+                                "PT.AM.PAC.Basic.Mobility.Score"]) == 0 & 
+       is.na(Interpolate.Master[Interpolate.Master[, "ID"] == NewMasterIDs[j] & 
+                                Interpolate.Master[, "DaysId"] == DAYSID[i-1], 
+                                "PT.AM.PAC.Basic.Mobility.Score"]) == 1){
       
-      #add this DaysId to the last vector
-      last=c(last,DAYSID[i])
+      last=c(last, DAYSID[i])
       
     }
     
@@ -361,170 +380,165 @@ for (j in 1:length(NewMasterIDs)){
   #delete the 0
   last=last[-1]
   
-  #cycle through first and last vectors
+  # perform interpolation ####
+  
+  # cycle through first and last vectors
   for (k in 1:length(first)){
     
-    #find the number of missing values between the nonmissing observation before
-    #missing values occur and the nonmissing observation after they stop occurring
-    Gap.Num=(which(DAYSID==last[k]) - which(DAYSID==first[k]))
+    # find the number of missing values between the nonmissing observation before
+    # missing values occur and the nonmissing observation after they stop occurring
+    Gap.Num = (which(DAYSID == last[k]) - which(DAYSID == first[k]))
     
-    ###Check to see if there were any missing values to interpolate in the first place 
-    
-    if (length(Gap.Num)!=0 & length(last[k]!=0)){
+    # check if there are any missing values to interpolate
+    if (length(Gap.Num) != 0 & length(last[k] != 0)){
       
-      ###find the slope for interpolation for each score
       
-      y2m=Interpolate.Master[Interpolate.Master[,"ID"]==NewMasterIDs[j] & 
-                               Interpolate.Master[,"DaysId"]==DAYSID[which(DAYSID==last[k])], 
-                             "PT.AM.PAC.Basic.Mobility.Score"]
+      # find the mobility score associated with the nonmissing observation after missing values stop occurring
+      y2m = Interpolate.Master[Interpolate.Master[,"ID"] == NewMasterIDs[j] & 
+                               Interpolate.Master[,"DaysId"] == DAYSID[which(DAYSID == last[k])], 
+                               "PT.AM.PAC.Basic.Mobility.Score"]
       
-      y1m=Interpolate.Master[Interpolate.Master[,"ID"]==NewMasterIDs[j] & 
-                               Interpolate.Master[,"DaysId"]==DAYSID[which(DAYSID==first[k])], 
-                             "PT.AM.PAC.Basic.Mobility.Score"]
+      # find the mobility score associated with the nonmissing observation after missing values begin occurring
+      y1m = Interpolate.Master[Interpolate.Master[,"ID"] == NewMasterIDs[j] & 
+                               Interpolate.Master[,"DaysId"] == DAYSID[which(DAYSID == first[k])], 
+                               "PT.AM.PAC.Basic.Mobility.Score"]
       
-      mobility.slope=(y2m-y1m)/Gap.Num
+      # find the slope between these two points
+      mobility.slope = (y2m - y1m)/Gap.Num
       
-      y2a=Interpolate.Master[Interpolate.Master[,"ID"]==NewMasterIDs[j] & 
-                               Interpolate.Master[,"DaysId"]==DAYSID[which(DAYSID==last[k])], 
-                             "OT.AM.Daily.Activity.Score"]
+      # find the activity score associated with the nonmissing observation after missing values stop occurring
+      y2a = Interpolate.Master[Interpolate.Master[,"ID"] == NewMasterIDs[j] & 
+                               Interpolate.Master[,"DaysId"] == DAYSID[which(DAYSID == last[k])], 
+                               "OT.AM.Daily.Activity.Score"]
       
-      y1a=Interpolate.Master[Interpolate.Master[,"ID"]==NewMasterIDs[j] & 
-                               Interpolate.Master[,"DaysId"]==DAYSID[which(DAYSID==first[k])], 
-                             "OT.AM.Daily.Activity.Score"]
+      # find the activity score associated with the nonmissing observation after missing values stop occurring
+      y1a = Interpolate.Master[Interpolate.Master[,"ID"] == NewMasterIDs[j] & 
+                               Interpolate.Master[,"DaysId"] == DAYSID[which(DAYSID == first[k])], 
+                               "OT.AM.Daily.Activity.Score"]
       
-      activity.slope=(y2a-y1a)/Gap.Num
+      # find the slope between these two points      
+      activity.slope = (y2a - y1a)/Gap.Num
       
-      y2c=Interpolate.Master[Interpolate.Master[,"ID"]==NewMasterIDs[j] & 
-                               Interpolate.Master[,"DaysId"]==DAYSID[which(DAYSID==last[k])], 
-                             "ST.AM.Applied.Cogn.Score"]
+      # find the mobility score associated with the nonmissing observation after missing values stop occurring
+      y2c = Interpolate.Master[Interpolate.Master[,"ID"] == NewMasterIDs[j] & 
+                               Interpolate.Master[,"DaysId"] == DAYSID[which(DAYSID == last[k])], 
+                               "ST.AM.Applied.Cogn.Score"]
       
-      y1c=Interpolate.Master[Interpolate.Master[,"ID"]==NewMasterIDs[j] & 
-                               Interpolate.Master[,"DaysId"]==DAYSID[which(DAYSID==first[k])], 
-                             "ST.AM.Applied.Cogn.Score"]
+      # find the mobility score associated with the nonmissing observation after missing values stop occurring
+      y1c = Interpolate.Master[Interpolate.Master[,"ID"] == NewMasterIDs[j] & 
+                               Interpolate.Master[,"DaysId"] == DAYSID[which(DAYSID == first[k])], 
+                               "ST.AM.Applied.Cogn.Score"]
       
-      cognitive.slope=(y2c-y1c)/Gap.Num
-      
-      ###fill in the missing values with the interpolations
+      # find the slope between these two points
+      cognitive.slope = (y2c - y1c)/Gap.Num
       
       #cycle through the observations with missing values that can be interpolated
-      for (i in 1:(Gap.Num-1)){
+      for (i in 1:(Gap.Num - 1)){
         
-        #replace NA with the interpolation
-        Interpolate.Master[Interpolate.Master[,"ID"]==NewMasterIDs[j] & 
-                             Interpolate.Master[,"DaysId"]==DAYSID[which(DAYSID==first[k]) + i], 
+        #replace missing values with the interpolated value
+        Interpolate.Master[Interpolate.Master[,"ID"] == NewMasterIDs[j] & 
+                           Interpolate.Master[,"DaysId"] == DAYSID[which(DAYSID == first[k]) + i], 
                            c("PT.AM.PAC.Basic.Mobility.Score", "OT.AM.Daily.Activity.Score", "ST.AM.Applied.Cogn.Score")]=
           c((y1m + i*mobility.slope), (y1a + i*activity.slope), (y1c + i*cognitive.slope))
       }
+      
     }
     
   }
   
 }
 
+# Create a dataset that only contains one observation for each patient (Interpolated)
+Interpolate.Master.One = Interpolate.Master[Interpolate.Master[,"DaysId"] == 3,] 
 
-###Create a dataset that only contains 1 datapoint for each patient
-
-Interpolate.Master.One=rbind(Interpolate.Master[Interpolate.Master[,"DaysId"]==3,], 
-                             Interpolate.Master[(Interpolate.Master[,"DaysId"]==11 & Interpolate.Master[,"ID"]==74) | 
-                                                  (Interpolate.Master[,"DaysId"]==10 & Interpolate.Master[,"ID"]==214),]) 
-
-Interpolate.Master.One=Interpolate.Master.One[order(Interpolate.Master.One[,"ID"]),]
-
-
-
+# check that the interpolation worked as intended
 # View(NewMaster[,c("ID", "DaysId", "PT.AM.PAC.Basic.Mobility.Score",
 #                   "OT.AM.Daily.Activity.Score" ,"ST.AM.Applied.Cogn.Score")])
 # 
 # View(Interpolate.Master[,c("ID", "DaysId", "PT.AM.PAC.Basic.Mobility.Score",
 #                   "OT.AM.Daily.Activity.Score" ,"ST.AM.Applied.Cogn.Score")])
 
-
-
-
-
-
-
-
-
-
+# 4. Matching function ####
 #####################################Function#######################################
 #Name: matching                                                                    #
 #Author: Traymon Beavers                                                           #
 #Date Created: 3/29/2017                                                           #
-#Purpose: To match the data based on gender, race, age, baseline average score and #
-#         type of stroke for mobility, activity, or cognitive ability or print out #
-#         matching IDs                                                             #
+#Date Updated: 7/3/2017                                                            #
+#Purpose: To match the data based on gender, race, type of stroke, age, baseline   #
+#         functional outcome scores, propensity score, and facility adjustor number#
 #Variables: AgeNum-width for age partial matching                                  #
-#           BaselineNum-width for baseline average partial matching                #
-#           ScoreNum-choice for which baseline average: 1 for Mobility, 2 for      #
-#                    Activity, and 3 for Cognitive                                 #
+#           BaselineMobNum-width for baseline mobility score partial matching      #
+#           BaselineActNum-width for baseline activity score partial matching      #
+#           BaselineCogNum-width for baseline cognitive score partial matching     #
 #           PScoreNum-width for propensity score partial matching                  #
-#           MahalNum-percentage for quantile for mahalanobis distances (based on   # 
-#                    baseline averages for the three different scores): control    #
-#                    patients are then only matched to study group patients if     #
-#                    their mahalanobis distance is below this quantile             #       
+#           FacAdjNum-width for facility adjustor partial matching                 #
 #                                                                                  #
 ####################################################################################
 
-matching=function(AgeNum=2, BaselineMobNum=20, BaselineActNum=20, 
-                  BaselineCogNum=20, PScoreNum=1, FacAdjNum=5){
+matching = function(AgeNum = 2, 
+                    BaselineMobNum = 20, 
+                    BaselineActNum = 20, 
+                    BaselineCogNum = 20, 
+                    PScoreNum = 1, 
+                    FacAdjNum = 5){
   
-  ###Create a data matrix for the characteristics to be used for matching for each patient 
-  ###in the study group
+  # create a data matrix for the characteristics to be used for matching for each 
+  # patient in the study group
+  Study.Characteristics = NewMaster.One[NewMaster.One[,"Group"] == "Study Group",
+                                        c("ID", 
+                                          "Age", 
+                                          "Gender", 
+                                          "New.Race", 
+                                          "Baseline.Mobility", 
+                                          "Baseline.Activity",
+                                          "Baseline.Cognitive",
+                                          "Type.of.Stroke",
+                                          "ARHosp.JRI.Facility.Adjustor")]
   
-  Study.Characteristics=NewMaster.One[NewMaster.One[,"Group"]=="Study Group",
-                                      c("ID", "Age", "Gender", "New.Race", 
-                                        "Baseline.Mobility", 
-                                        "Baseline.Activity",
-                                        "Baseline.Cognitive",
-                                        "Type.of.Stroke",
-                                        "ARHosp.JRI.Facility.Adjustor")]
+  # initialize a progress bar to check the progress of the matching
+  pb = txtProgressBar(min = 0, 
+                      max = dim(NewMaster.One.Control)[1], 
+                      initial = 0)
   
-  pb=txtProgressBar(min=0, max=dim(NewMaster.One.Control)[1], initial=0)
-  
-  ###Create vectors for the rows corresponding to each patient's observations in the study 
-  ###groupvand control group respectively
-  
-  # StudyRow.Index=which(NewMaster.One[,"Group"]=="Study Group")
-  # ControlRow.Index=which(NewMaster.One[,"Group"]=="Control Group")
-  
-  ###calculate the quantile to be used when matching on mahalanobis distance
-  
-  #delta=quantile(mahal.dist.vec, MahalNum)
-  
-  ###initialize a vector to contain the matches
+  # initialize a vector to contain the matches
   result=c(0,0,0)
   
-  ###begin the counter for pair ID
-  T=1
+  # begin the counter for pair ID
+  D = 1
   
-  ###match control group IDs to study group IDs based on the inputs given
+  # cycle through the control group observations
   for (i in 1:dim(NewMaster.One.Control)[1]){
     
-    setTxtProgressBar(pb,i)
+    #update progress bar to reflect that the function is attempting to match the next control
+    setTxtProgressBar(pb, i)
     
+    #cycle through the study characteristics
     for (j in 1:dim(Study.Characteristics)[1]){
       
-      if (NewMaster.One.Control[i,"Age"]>=(Study.Characteristics[j,"Age"] - AgeNum) &
-          NewMaster.One.Control[i,"Age"]<=(Study.Characteristics[j,"Age"] + AgeNum) &
-          NewMaster.One.Control[i, "Baseline.Mobility"]>=(Study.Characteristics[j, "Baseline.Mobility"] - BaselineMobNum) &
-          NewMaster.One.Control[i, "Baseline.Mobility"]<=(Study.Characteristics[j, "Baseline.Mobility"] + BaselineMobNum) &
-          NewMaster.One.Control[i, "Baseline.Activity"]>=(Study.Characteristics[j, "Baseline.Activity"] - BaselineActNum) &
-          NewMaster.One.Control[i, "Baseline.Activity"]<=(Study.Characteristics[j, "Baseline.Activity"] + BaselineActNum) &
-          NewMaster.One.Control[i, "Baseline.Cognitive"]>=(Study.Characteristics[j, "Baseline.Cognitive"] - BaselineCogNum) &
-          NewMaster.One.Control[i, "Baseline.Cognitive"]<=(Study.Characteristics[j, "Baseline.Cognitive"] + BaselineCogNum) &
-          NewMaster.One.Control[i,"Gender"]==Study.Characteristics[j,"Gender"] &
-          NewMaster.One.Control[i,"New.Race"]==Study.Characteristics[j,"New.Race"] &
-          NewMaster.One.Control[i,"Type.of.Stroke"]==Study.Characteristics[j,"Type.of.Stroke"] &
-          # NewMaster.One.Control[i,"Propensity.Score"]>=(Study.Characteristics[j,"Propensity.Score"] - PScoreNum) &
-          # NewMaster.One.Control[i,"Propensity.Score"]<=(Study.Characteristics[j,"Propensity.Score"] + PScoreNum) &
-          NewMaster.One.Control[i,"ARHosp.JRI.Facility.Adjustor"]>=(Study.Characteristics[j,"ARHosp.JRI.Facility.Adjustor"] - FacAdjNum) & 
-          NewMaster.One.Control[i,"ARHosp.JRI.Facility.Adjustor"]<=(Study.Characteristics[j,"ARHosp.JRI.Facility.Adjustor"] + FacAdjNum)){
-        #mahalanobis(X[ControlRow.Index[i],], X[StudyRow.Index[j],], SX)<=delta){
+      # add the matched pair and their pair ID to the list of matches if matching criteria is satisfied 
+      if (is.na(NewMaster.One.Control[i, "Baseline.Mobility"]) == 0 & 
+          NewMaster.One.Control[i, "Age"] >= (Study.Characteristics[j, "Age"] - AgeNum) &
+          NewMaster.One.Control[i, "Age"] <= (Study.Characteristics[j, "Age"] + AgeNum) &
+          NewMaster.One.Control[i, "Baseline.Mobility"] >= (Study.Characteristics[j, "Baseline.Mobility"] - BaselineMobNum) &
+          NewMaster.One.Control[i, "Baseline.Mobility"] <= (Study.Characteristics[j, "Baseline.Mobility"] + BaselineMobNum) &
+          NewMaster.One.Control[i, "Baseline.Activity"] >= (Study.Characteristics[j, "Baseline.Activity"] - BaselineActNum) &
+          NewMaster.One.Control[i, "Baseline.Activity"] <= (Study.Characteristics[j, "Baseline.Activity"] + BaselineActNum) &
+          NewMaster.One.Control[i, "Baseline.Cognitive"] >= (Study.Characteristics[j, "Baseline.Cognitive"] - BaselineCogNum) &
+          NewMaster.One.Control[i, "Baseline.Cognitive"] <= (Study.Characteristics[j, "Baseline.Cognitive"] + BaselineCogNum) &
+          NewMaster.One.Control[i,"Gender"] == Study.Characteristics[j,"Gender"] &
+          NewMaster.One.Control[i,"New.Race"] == Study.Characteristics[j, "New.Race"] &
+          NewMaster.One.Control[i,"Type.of.Stroke"] == Study.Characteristics[j, "Type.of.Stroke"] &
+          # NewMaster.One.Control[i,"Propensity.Score"] >= (Study.Characteristics[j,"Propensity.Score"] - PScoreNum) &
+          # NewMaster.One.Control[i,"Propensity.Score"] <= (Study.Characteristics[j,"Propensity.Score"] + PScoreNum) &
+          NewMaster.One.Control[i,"ARHosp.JRI.Facility.Adjustor"] >= (Study.Characteristics[j, "ARHosp.JRI.Facility.Adjustor"] - FacAdjNum) & 
+          NewMaster.One.Control[i,"ARHosp.JRI.Facility.Adjustor"] <= (Study.Characteristics[j, "ARHosp.JRI.Facility.Adjustor"] + FacAdjNum)){
         
-        result=rbind(result, c(T, Study.Characteristics[j,"ID"], 1), c(T, NewMaster.One.Control[i,"ID"], 0))
+        result=rbind(result, 
+                     c(D, Study.Characteristics[j,"ID"], 1), 
+                     c(D, NewMaster.One.Control[i,"ID"], 0))
         
-        T=T+1
+        # increase the pair ID counter
+        D=D+1
         
       }
       
@@ -532,102 +546,132 @@ matching=function(AgeNum=2, BaselineMobNum=20, BaselineActNum=20,
     
   }
   
+  # finish progress bar
   close(pb)
   
+  # give names to what each column represents
   colnames(result)=c("PairID", "ID", "Group")
   
-  
-  ###delete the values used to initialize the vector and order the observations by study 
-  ###group ID and control group ID
+  # delete the initial 0's
   result=result[-1,]
   
+  # output the resulting matches
   return(result)
   
 }
 
 #################################End Function#######################################
 
-#####Check function####
+# Check function ####
 
-matchrows=matching(AgeNum = 5 , BaselineMobNum=25, BaselineActNum=25, 
-                   BaselineCogNum=25, PScoreNum = 1, FacAdjNum = 2)
+matchrows=matching(AgeNum = 5,
+                   BaselineMobNum = 25,
+                   BaselineActNum = 25, 
+                   BaselineCogNum = 25, 
+                   PScoreNum = 1, 
+                   FacAdjNum = 3)
 
-length(unique(matchrows[matchrows[,3]==1,2]))
+# count the number of study patients matched
+length(unique(matchrows[matchrows[,3] == 1, 2]))
 
+# Check creation of unique (up to Study ID) one to one matches #### 
+
+# find the seed that produces the set of one to one matches with the most unique controls and the most non-missing observations ####
+
+### seed is 90
+
+# # initialize vector to hold the number of non-missing observations this collection of matches has
+# NA.Num = 0
 # 
-# View(matchrows)
+# # initialize vector to hold the number of unique control group patients this collection of matches has
+# UC.Num = 0
 
-####Check creation of unique (up to Study ID) one to one matched patients#### 
-
-
-
-###use this for loop to find the seed that produces the most unique matches
-A=0
-B=0
-
+# cycle through 1000 seeds
 #for (k in 1:1000){
 
-matchrow.final=c(0,0,0)
+  # initialize the matrix to hold the set of one to one matches
+  matchrow.final = c(0,0,0)
+  
+  # cycle through the unique study patients in the matches created 
+  for (i in unique(matchrows[matchrows[,3]==1,2])){
+    
+    # set the seed
+    set.seed(90)
+    
+    # count the number of control patients matched to this study patient
+    N = length(which(matchrows[,2] == i))
+    
+    # randomly choose which control patient will be move to the one-to-one set of matches
+    j = ceiling(runif(1, 0, N))
+    
+    # update the set of one to one matches to include the new match
+    matchrow.final = rbind(matchrow.final,
+                           matchrows[which(matchrows[,2] == i)[j], ],
+                           matchrows[(which(matchrows[,2] == i)[j] + 1), ])
+    
+  }
+  
+# delete the initial 0's (begin indent)
+matchrow.final = matchrow.final[-1,]
 
-for (i in unique(matchrows[matchrows[,3]==1,2])){
-  
-  set.seed(13)
-  
-  N=length(which(matchrows[,2]==i))
-  
-  j=ceiling(runif(1,0,N))
-  
-  matchrow.final=rbind(matchrow.final,
-                       matchrows[which(matchrows[,2]==i)[j],],
-                       matchrows[which(matchrows[,2]==i)[j]+1,])
-  
-}
-
-matchrow.final=matchrow.final[-1,]
-
-# Non.Missing.Num=0
+# # Count the number of non missing observations this set of one to one matches contains ####
 # 
+# # initialize the number of non missing observations
+# Non.Missing.Num = 0
+# 
+# # cycle through the IDs in the set of one to one matches
 # for (j in unique(matchrow.final[,2])){
 # 
-#   Non.Missing.Num=Non.Missing.Num + length(Interpolate.Master[Interpolate.Master[,"ID"]==j &
-#                                                               Interpolate.Master[,"DaysId"]>=1 &
-#                                                               Interpolate.Master[,"DaysId"]<=8,
-#                                                             "PT.AM.PAC.Basic.Mobility.Score"])-sum(is.na(Interpolate.Master[Interpolate.Master[,"ID"]==j &
-#                                                                                                               Interpolate.Master[,"DaysId"]>=1 &
-#                                                                                                               Interpolate.Master[,"DaysId"]<=8,
-#                                                                                                             "PT.AM.PAC.Basic.Mobility.Score"]))
+#   # update the number of non missing observations to include the number of non missing 
+#   # observations this ID has
+#   Non.Missing.Num = Non.Missing.Num + length(Interpolate.Master[Interpolate.Master[, "ID"] == j &
+#                                                                 Interpolate.Master[, "DaysId"] >= 1 &
+#                                                                 Interpolate.Master[, "DaysId"] <= 8,
+#                                                                 "PT.AM.PAC.Basic.Mobility.Score"]) - sum(is.na(Interpolate.Master[Interpolate.Master[, "ID"] == j &
+#                                                                                                               Interpolate.Master[, "DaysId"] >= 1 &
+#                                                                                                               Interpolate.Master[, "DaysId"] <= 8,
+#                                                                                                               "PT.AM.PAC.Basic.Mobility.Score"]))
 # 
 # 
 # }
+# (end indent)
+#   # update A to include the number of non missing observations for this set of one to one matches
+#   NA.Num = c(NA.Num, Non.Missing.Num)
 # 
-# A=c(A,Non.Missing.Num)
-# B=c(B,length(unique(matchrow.final[matchrow.final[,3]==0,2])))
+#   # update B to include the number of unique controls for this set of one to one matches
+#   UC.Num = c(UC.Num, length(unique(matchrow.final[matchrow.final[,3] == 0, 2])))
+#   
+#   # print seeds that have number of non missing observations and unique controls above a desired threshold
+#   if (length(unique(matchrow.final[matchrow.final[,3] == 0, 2])) >= 42 & Non.Missing.Num >= 650){
 # 
+#     print(k)
+#     print(c(length(unique(matchrow.final[matchrow.final[, 3] == 0, 2])), Non.Missing.Num))
 # 
-# if (length(unique(matchrow.final[matchrow.final[,3]==0,2]))>=50 & Non.Missing.Num>=770){
-# 
-#   print(k)
-#   print(c(length(unique(matchrow.final[matchrow.final[,3]==0,2])),Non.Missing.Num))
+#   }
 # 
 # }
-# 
-# }
 
-max(A)
-max(B)
+# check what the maximum number of missing observations and maximum number of unique controls are
+# max(NA.Num)
+# max(UC.Num)
 
-###put different controls matched to same study the same strata
+# give different controls matched to same study the same pair ID ####
 
-matchrow.final=matchrow.final[order(matchrow.final[,1]),]
+# order the set of one to one matches by their Pair IDs 
+matchrow.final = matchrow.final[order(matchrow.final[,1]), ]
 
-for (i in unique(matchrow.final[matchrow.final[,3]==0,2])[1:length(unique(matchrow.final[matchrow.final[,3]==0,2]))]){
+# cycle through the matched IDs in the control group 
+for (i in unique(matchrow.final[matchrow.final[,3] == 0, 2])[1:length(unique(matchrow.final[matchrow.final[, 3] == 0, 2]))]){
   
-  if (length(which(matchrow.final[,2]==i))>1){
+  # check if this control patient is matched to more than one study patient
+  if (length(which(matchrow.final[,2] == i)) > 1){
     
-    for (j in 2:length(which(matchrow.final[,2]==i))){
+    # cycle through the the second to last ID  
+    for (j in 2:length(which(matchrow.final[,2] == i))){
       
-      matchrow.final[which(matchrow.final[,2]==i)[j]-1,1]=matchrow.final[which(matchrow.final[,2]==i)[j-1]-1,1]
-      matchrow.final[which(matchrow.final[,2]==i)[j],1]=matchrow.final[which(matchrow.final[,2]==i)[j-1],1]
+      # set each 
+      matchrow.final[(which(matchrow.final[,2] == i)[j] - 1), 1] = matchrow.final[(which(matchrow.final[,2] == i)[j-1] - 1), 1]
+      matchrow.final[which(matchrow.final[,2] == i)[j], 1] = matchrow.final[which(matchrow.final[,2] == i)[j-1], 1]
       
     }  
     
@@ -645,174 +689,55 @@ for (i in unique(matchrow.final[matchrow.final[,3]==0,2])[1:length(unique(matchr
   
 }
 
-#View(matchrow.final[order(matchrow.final[,1], matchrow.final[,3]),])
-
-####Check creation of unique one to one matched patients#### 
-
-# #initialize the "first" row of the unique matchrows
-# matchrows.one=c(0,0,0)
-# 
-# #initialize the "first" item of the control IDs that cannot be used again
-# controlsdone=0
-# 
-# #Initialize vector for number of control matches for each study group match
-# #Note: this is the largest matrix necessary since the worst case scenario
-# #would be each StudyID have the same amount of matches as the StudyID
-# #with the largest amount of matches
-# control.match.lengths=matrix(rep(0, max(unique(matchrows[matchrows[,3]==1,2]))*2), nrow=max(unique(matchrows[matchrows[,3]==1,2]), ncol=2))
-# 
-# colnames(control.match.lengths)=c("Study ID", "Number of Controls Matched")
-# 
-# #cycle through the distinct study ID matches
-# for (i in unique(matchrows[matchrows[,"Group"]==1,"ID"])){
-#   
-#   #place the study IDs and amount of controls they match into matrix,
-#   #in that order
-#   control.match.lengths[i,]=c(i,length((which(matchrows[,"ID"]==i)+1)))
-#   
-# }
-# 
-# #order the study IDs by control match lengths
-# control.match.lengths=control.match.lengths[order(control.match.lengths[,"Number of Controls Matched"]),]
-# 
-# #only keep nonzero elements
-# control.match.lengths.2=control.match.lengths[control.match.lengths[,"Study ID"]>0, ]
-# 
-# #initialize progress bar
-# pb=txtProgressBar(min=0, max=dim(control.match.lengths.2)[1], initial=0)
-# 
-# #initialize progress counter
-# G=0
-# 
-# #cycle through the Study Group IDs in order, from least amount of controls 
-# #to most amount of controls
-# for (i in control.match.lengths.2[,"Study ID"]){
-#   
-#   #make progress
-#   G=G+1
-#   
-#   setTxtProgressBar(pb,G)
-#   
-#   #cycle through the row numbers of the controls matched to study ID i
-#   for (j in 1:length((which(matchrows[,"ID"]==i)+1))){
-#     
-#     #initialize exit from next loop
-#     Exit=0
-#     
-#     #cycle through the controls already matched
-#     for (k in 1:length(unique(controlsdone))){
-#   
-#       Count=0
-#       
-#       #check if the jth control matched to study ID i is equal to
-#       #the kth control in controlsdone
-#       if (matchrows[(which(matchrows[,"ID"]==i)+1)[j],"ID"]==unique(controlsdone)[k] & Exit==0){
-#       
-#         #switch Exit to 1 to exit the for loop
-#         Exit=1
-#           
-#       }else if (matchrows[(which(matchrows[,"ID"]==i)+1)[j],"ID"]!=controlsdone[k] & Exit==0 
-#                 & (k==length(controlsdone))){
-#         
-#         #place the study and control match in matchrows.one
-#         matchrows.one=rbind(matchrows.one,
-#                             matchrows[matchrows[,"ID"]==i & matchrows[,"PairID"]==
-#                                         matchrows[(which(matchrows[,"ID"]==i)+1)[j], "PairID"],],
-#                             matchrows[matchrows[,"ID"]!=i & matchrows[,"PairID"]==
-#                                         matchrows[(which(matchrows[,"ID"]==i)+1)[j], "PairID"],])
-#         
-#         #place this control ID in controlsdone
-#         controlsdone=c(unique(controlsdone), matchrows[(which(matchrows[,"ID"]==i)+1)[j],"ID"])
-#         
-#         #switch Exit to 1 to exit the for loop
-#         Exit=1
-#     
-#       }
-#     }
-#   }
-# }
-# 
-# #close the progress bar
-# close(pb)
-# 
-# matchrows.one=matchrows.one[-1,]
-# 
-# #dim(matchrows.one)[1]/2
-# 
-# matchrows.final=c(0,0,0)
-# 
-# for (i in (unique(matchrows.one[matchrows.one[,"Group"]==1,"ID"]))){
-#   
-#   if (length(which(matchrows.one[,"ID"]==i))==1){
-#     
-#     matchrows.final=rbind(matchrows.final,
-#                           matchrows.one[which(matchrows.one[,"ID"]==i),],
-#                           matchrows.one[which(matchrows.one[,"ID"]==i)+1,])
-#                     
-#   }
-#   
-# 
-#   if (length(which(matchrows.one[,"ID"]==i))>=2){
-# 
-#       matchrows.final=rbind(matchrows.final,
-#                             matchrows.one[which(matchrows.one[,"ID"]==i)[1],],
-#                             matchrows.one[which(matchrows.one[,"ID"]==i)[1]+1,])
-#   }
-# 
-# }
-# 
-# matchrows.final=matchrows.final[-1,]
-# 
-# matchrows.final=unique(matchrows.final[order(matchrows.final[,1], matchrows.final[,3]),])
-# 
-# dim(matchrows.final)[1]/2
-# 
-# View(matchrows.final)
-
-
-# 
-# for (i in 1:max(matchrows[,1])){
-# 
-# print(NewMaster.One[NewMaster.One[,"ID"]==matchrows[matchrows[,"PairID"]==i & matchrows[,"Group"]==1 ,2]
-#                     | NewMaster.One[,"ID"]==matchrows[matchrows[,"PairID"]==i & matchrows[,"Group"]==0 ,2] ,
-#                     c("ID", "Group", "Age", "Gender", "New.Race", "Baseline.Mobility",
-#                       "Propensity.Score", "ARHosp.JRI.Facility.Adjustor")])
-# 
-# }
-
-
-
-# for (i in 1:dim(control.match.lengths.2)[1]){
-#   
-#   print(control.match.lengths.2[i,1])
-#   
-#   print(matchrows[which(matchrows[,2]==control.match.lengths.2[i,1])+1,])
-#   
-# }
-
-####Make matches for powerpoint####
-
-View(NewMaster.One[NewMaster.One[,"ID"]==23 | NewMaster.One[,"ID"]==230,
-                   c("ID", "Group", "Age", "Gender", "New.Race", 
-                     "Baseline.Mobility", 
-                     "Baseline.Activity",
-                     "Baseline.Cognitive",
-                     "Type.of.Stroke",
-                     "ARHosp.JRI.Facility.Adjustor")])
+# # Make matches for powerpoint ####
+# View(NewMaster.One[NewMaster.One[,"ID"]==23 | NewMaster.One[,"ID"]==230,
+#                    c("ID", "Group", "Age", "Gender", "New.Race", 
+#                      "Baseline.Mobility", 
+#                      "Baseline.Activity",
+#                      "Baseline.Cognitive",
+#                      "Type.of.Stroke",
+#                      "ARHosp.JRI.Facility.Adjustor")])
 
 
 
 
-##########################ANALYSIS OF CONTINUOUS PATIENT OUTCOMES##########################
+# 5. Analysis of continous functional outcomes ####
 
-# (5, 25, 25, 25, 1, 2) yields 66 out of 85 study ID matches with 54 unique controls and 774 nonmissing obs
-# with seed 13; max is 54 and 774
+# Notes about set of one to one matches ####
+### (5, 25, 25, 25, 1, 3) yields 58 out of 85 study ID matches
+### 46 unique controls 684 nonmissing obs with seed 90
+### maximum is 46 and 684
 
-####follow up analysis####
+# 5a. Follow up analysis ####
 
-follow.up.analysis=function(AgeNum = 5, BaselineMobNum=25, BaselineActNum=25, 
-                            BaselineCogNum=25, PScoreNum = 1, FacAdjNum = 2,
-                            ScoreNum=1, FollowUpNum=4){
+#####################################Function#######################################
+#Name: follow.up.analysis                                                          #
+#Author: Traymon Beavers                                                           #
+#Date Created: 6/15/2017                                                           #
+#Date Updated: 7/3/2017                                                            #
+#Purpose: To match the data based on gender, race, type of stroke, age, baseline   #
+#         functional outcome scores, propensity score, and facility adjustor number#
+#         and then perform a paired t-test with each match acting as a pair        #
+#Variables: AgeNum-width for age partial matching                                  #
+#           BaselineMobNum-width for baseline mobility score partial matching      #
+#           BaselineActNum-width for baseline activity score partial matching      #
+#           BaselineCogNum-width for baseline cognitive score partial matching     #
+#           PScoreNum-width for propensity score partial matching                  #
+#           FacAdjNum-width for facility adjustor partial matching                 #
+#           ScoreNum-functional outcome to be analyzed: 1 for mobility, 2 for      #
+#                    activity, and 3 for cognitive                                 #
+#           FollowUpNum-visit number to analyze                                    #
+#                                                                                  #
+####################################################################################
+  
+follow.up.analysis = function(AgeNum = 5, 
+                              BaselineMobNum=25, 
+                              BaselineActNum=25, 
+                              BaselineCogNum=25, 
+                              PScoreNum = 1, 
+                              FacAdjNum = 3,
+                              ScoreNum=1, 
+                              FollowUpNum=4){
   
   matchrows=matching(AgeNum = AgeNum , BaselineMobNum=BaselineMobNum, BaselineActNum=BaselineActNum, 
                      BaselineCogNum=BaselineCogNum, PScoreNum = PScoreNum, FacAdjNum = FacAdjNum)
@@ -905,7 +830,11 @@ follow.up.analysis=function(AgeNum = 5, BaselineMobNum=25, BaselineActNum=25,
   return(result)
   
 }
+  
+#################################End Function#######################################
 
+# conduct follow up analysis for each score and each time point ####
+  
 for (i in 1:3){
   
   for (j in 4:7){
@@ -916,6 +845,8 @@ for (i in 1:3){
   
 }
 
+
+  
 ####lmer analysis####
 
 lmer.analysis=function(AgeNum = 5, BaselineMobNum=25, BaselineActNum=25, 
@@ -1199,27 +1130,27 @@ multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
 
 # preliminary plots ####
 
-Sort.NewStudyGroup[,"col.ggplot"]=rep(NA, dim(Sort.NewStudyGroup)[1])
+Master.Study[,"col.ggplot"]=rep(NA, dim(Master.Study)[1])
 
-Sort.NewStudyGroup[Sort.NewStudyGroup[,"DaysId"]<=2,"col.ggplot"]="blue"
+Master.Study[Master.Study[,"DaysId"]<=2,"col.ggplot"]="blue"
 
-Sort.NewStudyGroup[Sort.NewStudyGroup[,"DaysId"]==3,"col.ggplot"]="purple"
+Master.Study[Master.Study[,"DaysId"]==3,"col.ggplot"]="purple"
 
-Sort.NewStudyGroup[Sort.NewStudyGroup[,"DaysId"]>=4,"col.ggplot"]="green"
+Master.Study[Master.Study[,"DaysId"]>=4,"col.ggplot"]="green"
 
-Sort.NewControlGroup[,"col.ggplot"]=rep(NA, dim(Sort.NewControlGroup)[1])
+Master.Control[,"col.ggplot"]=rep(NA, dim(Master.Control)[1])
 
-Sort.NewControlGroup[Sort.NewControlGroup[,"DaysId"]<=2,"col.ggplot"]="blue"
+Master.Control[Master.Control[,"DaysId"]<=2,"col.ggplot"]="blue"
 
-Sort.NewControlGroup[Sort.NewControlGroup[,"DaysId"]==3,"col.ggplot"]="purple"
+Master.Control[Master.Control[,"DaysId"]==3,"col.ggplot"]="purple"
 
-Sort.NewControlGroup[Sort.NewControlGroup[,"DaysId"]>=4 ,"col.ggplot"]="red"
+Master.Control[Master.Control[,"DaysId"]>=4 ,"col.ggplot"]="red"
 
 
 for (i in 1:3){
   # Remove NAs (DS 06/23/2017)
   vname <- ScoreVarName[i]
-  tmp1 <- Sort.NewStudyGroup[!is.na(Sort.NewStudyGroup[, vname]), ]
+  tmp1 <- Master.Study[!is.na(Master.Study[, vname]), ]
   
   p1 <- ggplot(data=tmp1,
                aes(x=Days_afterOnset,
@@ -1248,7 +1179,7 @@ for (i in 1:3){
     theme(plot.title = element_text(hjust = 0.5),
           legend.position = "top")
   
-  tmp2 <- Sort.NewControlGroup[!is.na(Sort.NewControlGroup[, vname]), ]
+  tmp2 <- Master.Control[!is.na(Master.Control[, vname]), ]
   
   
   
