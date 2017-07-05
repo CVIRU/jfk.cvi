@@ -562,85 +562,161 @@ matching = function(AgeNum = 2,
 
 #################################End Function#######################################
 
-# Check function ####
+# 4a. One to one matching function ####
 
-matchrows=matching(AgeNum = 5,
-                   BaselineMobNum = 25,
-                   BaselineActNum = 25, 
-                   BaselineCogNum = 25, 
-                   PScoreNum = 1, 
-                   FacAdjNum = 3)
+#####################################Function#######################################
+#Name: final.matching                                                              #
+#Author: Traymon Beavers                                                           #
+#Date Created: 7/4/2017                                                            #
+#Date Updated: 7/4/2017                                                            #
+#Purpose: To create one to one matches after the data is already matched using the #
+#         matching function; unique up to Study patient                            #
+#Variables: Matchrows-matched pairs created using matching                         #
+#           Match.seed-seed for randomly choosing the one to one matches           #
+#                                                                                  #
+####################################################################################
 
-# count the number of study patients matched
-length(unique(matchrows[matchrows[,3] == 1, 2]))
-
-# Check creation of unique (up to Study ID) one to one matches #### 
-
-# find the seed that produces the set of one to one matches with the most unique controls and the most non-missing observations ####
-
-### seed is 90
-
-# # initialize vector to hold the number of non-missing observations this collection of matches has
-# NA.Num = 0
-# 
-# # initialize vector to hold the number of unique control group patients this collection of matches has
-# UC.Num = 0
-
-# cycle through 1000 seeds
-#for (k in 1:1000){
-
+final.matching = function(Matchrows = matchrows,
+                          Match.seed = 90){
+  
   # initialize the matrix to hold the set of one to one matches
   matchrow.final = c(0,0,0)
   
   # cycle through the unique study patients in the matches created 
-  for (i in unique(matchrows[matchrows[,3]==1,2])){
+  for (i in unique(Matchrows[Matchrows[,3]==1,2])){
     
     # set the seed
-    set.seed(90)
+    set.seed(Match.seed)
     
     # count the number of control patients matched to this study patient
-    N = length(which(matchrows[,2] == i))
+    N = length(which(Matchrows[,2] == i))
     
     # randomly choose which control patient will be move to the one-to-one set of matches
     j = ceiling(runif(1, 0, N))
     
     # update the set of one to one matches to include the new match
     matchrow.final = rbind(matchrow.final,
-                           matchrows[which(matchrows[,2] == i)[j], ],
-                           matchrows[(which(matchrows[,2] == i)[j] + 1), ])
+                           Matchrows[which(Matchrows[,2] == i)[j], ],
+                           Matchrows[(which(Matchrows[,2] == i)[j] + 1), ])
     
   }
   
-# delete the initial 0's (begin indent)
-matchrow.final = matchrow.final[-1,]
+  # delete the initial 0's (begin indent)
+  matchrow.final = matchrow.final[-1,]
+  
+  # order the set of one to one matches by their Pair IDs 
+  matchrow.final = matchrow.final[order(matchrow.final[,1]), ]
+  
+  # cycle through the matched IDs in the control group 
+  for (i in unique(matchrow.final[matchrow.final[,3] == 0, 2])[1:length(unique(matchrow.final[matchrow.final[, 3] == 0, 2]))]){
+    
+    # check if this control patient is matched to more than one study patient
+    if (length(which(matchrow.final[,2] == i)) > 1){
+      
+      # cycle through the the second to last ID  
+      for (j in 2:length(which(matchrow.final[,2] == i))){
+        
+        # give every patient matched to the same control the same Pair ID 
+        matchrow.final[(which(matchrow.final[,2] == i)[j] - 1), 1] = matchrow.final[(which(matchrow.final[,2] == i)[j-1] - 1), 1]
+        matchrow.final[which(matchrow.final[,2] == i)[j], 1] = matchrow.final[which(matchrow.final[,2] == i)[j-1], 1]
+        
+      }  
+      
+    }
+    
+  }
+  
+  # cycle through the matched IDs in the control group 
+  for (i in unique(matchrow.final[matchrow.final[,3] == 0, 2])[1:length(unique(matchrow.final[matchrow.final[, 3] == 0, 2]))]){
+    
+    # check if this control patient is matched to more than one study patient
+    if (length(which(matchrow.final[,2]==i))>1){
+      
+      # delete the extra entries of this control patient so hat only one is left
+      matchrow.final = matchrow.final[-which(matchrow.final[, 2] == i)[2:length(which(matchrow.final[, 2] == i))], ]
+      
+    }
+    
+  }
+  
+  return(matchrow.final)
+  
+}
 
-# # Count the number of non missing observations this set of one to one matches contains ####
+#################################End Function#######################################
+
+# 4b. Check and optimize function output ####
+matchrows = matching(AgeNum = 5,
+                     BaselineMobNum = 25,
+                     BaselineActNum = 25, 
+                     BaselineCogNum = 25, 
+                     PScoreNum = 1, 
+                     FacAdjNum = 3)
+
+# count the number of study patients matched
+length(unique(matchrows[matchrows[,3] == 1, 2]))
+
+# # find the seed that produces the set of one to one matches with the most unique controls and the most non-missing observations ####
 # 
-# # initialize the number of non missing observations
-# Non.Missing.Num = 0
+# # initialize vector to hold the number of non-missing observations this collection of matches has
+# NA.Num = 0
 # 
-# # cycle through the IDs in the set of one to one matches
-# for (j in unique(matchrow.final[,2])){
+# # initialize vector to hold the number of unique control group patients this collection of matches has
+# UC.Num = 0
 # 
-#   # update the number of non missing observations to include the number of non missing 
-#   # observations this ID has
-#   Non.Missing.Num = Non.Missing.Num + length(Interpolate.Master[Interpolate.Master[, "ID"] == j &
-#                                                                 Interpolate.Master[, "DaysId"] >= 1 &
-#                                                                 Interpolate.Master[, "DaysId"] <= 8,
-#                                                                 "PT.AM.PAC.Basic.Mobility.Score"]) - sum(is.na(Interpolate.Master[Interpolate.Master[, "ID"] == j &
-#                                                                                                               Interpolate.Master[, "DaysId"] >= 1 &
-#                                                                                                               Interpolate.Master[, "DaysId"] <= 8,
-#                                                                                                               "PT.AM.PAC.Basic.Mobility.Score"]))
+# # cycle through 1000 seeds
+# for (k in 1:1000){
 # 
-# 
-# }
-# (end indent)
+#   # initialize the matrix to hold the set of one to one matches
+#   matchrow.final = c(0,0,0)
+#   
+#   # cycle through the unique study patients in the matches created 
+#   for (i in unique(matchrows[matchrows[,3]==1,2])){
+#     
+#     # set the seed
+#     set.seed(k)
+#     
+#     # count the number of control patients matched to this study patient
+#     N = length(which(matchrows[,2] == i))
+#     
+#     # randomly choose which control patient will be move to the one-to-one set of matches
+#     j = ceiling(runif(1, 0, N))
+#     
+#     # update the set of one to one matches to include the new match
+#     matchrow.final = rbind(matchrow.final,
+#                            matchrows[which(matchrows[,2] == i)[j], ],
+#                            matchrows[(which(matchrows[,2] == i)[j] + 1), ])
+#     
+#   }
+#   
+#   # delete the initial 0's
+#   matchrow.final = matchrow.final[-1,]
+#   
+#   # initialize the number of non missing observations
+#   Non.Missing.Num = 0
+#   
+#   # cycle through the IDs in the set of one to one matches
+#   for (j in unique(matchrow.final[,2])){
+#   
+#     # update the number of non missing observations to include the number of non missing
+#     # observations this ID has
+#     Non.Missing.Num = Non.Missing.Num + length(Interpolate.Master[Interpolate.Master[, "ID"] == j &
+#                                                                   Interpolate.Master[, "DaysId"] >= 1 &
+#                                                                   Interpolate.Master[, "DaysId"] <= 8,
+#                                                                   "PT.AM.PAC.Basic.Mobility.Score"]) - sum(is.na(Interpolate.Master[Interpolate.Master[, "ID"] == j &
+#                                                                                                                 Interpolate.Master[, "DaysId"] >= 1 &
+#                                                                                                                 Interpolate.Master[, "DaysId"] <= 8,
+#                                                                                                                 "PT.AM.PAC.Basic.Mobility.Score"]))
+#   
+#   
+#   }
+#   
 #   # update A to include the number of non missing observations for this set of one to one matches
 #   NA.Num = c(NA.Num, Non.Missing.Num)
 # 
 #   # update B to include the number of unique controls for this set of one to one matches
 #   UC.Num = c(UC.Num, length(unique(matchrow.final[matchrow.final[,3] == 0, 2])))
-#   
+# 
 #   # print seeds that have number of non missing observations and unique controls above a desired threshold
 #   if (length(unique(matchrow.final[matchrow.final[,3] == 0, 2])) >= 42 & Non.Missing.Num >= 650){
 # 
@@ -650,44 +726,18 @@ matchrow.final = matchrow.final[-1,]
 #   }
 # 
 # }
-
-# check what the maximum number of missing observations and maximum number of unique controls are
+# 
+# # check what the maximum number of missing observations and maximum number of unique controls are
 # max(NA.Num)
 # max(UC.Num)
 
-# give different controls matched to same study the same pair ID ####
 
-# order the set of one to one matches by their Pair IDs 
-matchrow.final = matchrow.final[order(matchrow.final[,1]), ]
+# Check creation of unique (up to Study ID) one to one matches ####
+matchrow.final = final.matching()
 
-# cycle through the matched IDs in the control group 
-for (i in unique(matchrow.final[matchrow.final[,3] == 0, 2])[1:length(unique(matchrow.final[matchrow.final[, 3] == 0, 2]))]){
-  
-  # check if this control patient is matched to more than one study patient
-  if (length(which(matchrow.final[,2] == i)) > 1){
-    
-    # cycle through the the second to last ID  
-    for (j in 2:length(which(matchrow.final[,2] == i))){
-      
-      # set each 
-      matchrow.final[(which(matchrow.final[,2] == i)[j] - 1), 1] = matchrow.final[(which(matchrow.final[,2] == i)[j-1] - 1), 1]
-      matchrow.final[which(matchrow.final[,2] == i)[j], 1] = matchrow.final[which(matchrow.final[,2] == i)[j-1], 1]
-      
-    }  
-    
-  }
-  
-}
+# count the number of control patients matched in the one to one matches
+length(unique(matchrow.final[matchrow.final[,3] == 0, 2]))
 
-for (i in unique(matchrow.final[matchrow.final[,3]==0,2])[1:length(unique(matchrow.final[matchrow.final[,3]==0,2]))]){
-  
-  if (length(which(matchrow.final[,2]==i))>1){
-    
-    matchrow.final=matchrow.final[-which(matchrow.final[,2]==i)[2:length(which(matchrow.final[,2]==i))],]
-    
-  }
-  
-}
 
 # # Make matches for powerpoint ####
 # View(NewMaster.One[NewMaster.One[,"ID"]==23 | NewMaster.One[,"ID"]==230,
@@ -713,7 +763,7 @@ for (i in unique(matchrow.final[matchrow.final[,3]==0,2])[1:length(unique(matchr
 #####################################Function#######################################
 #Name: follow.up.analysis                                                          #
 #Author: Traymon Beavers                                                           #
-#Date Created: 6/15/2017                                                           #
+#Date Created: 4/15/2017                                                           #
 #Date Updated: 7/3/2017                                                            #
 #Purpose: To match the data based on gender, race, type of stroke, age, baseline   #
 #         functional outcome scores, propensity score, and facility adjustor number#
@@ -727,111 +777,116 @@ for (i in unique(matchrow.final[matchrow.final[,3]==0,2])[1:length(unique(matchr
 #           ScoreNum-functional outcome to be analyzed: 1 for mobility, 2 for      #
 #                    activity, and 3 for cognitive                                 #
 #           FollowUpNum-visit number to analyze                                    #
+#           Match.seed-seed for choosing the one to one matches                    #
 #                                                                                  #
 ####################################################################################
   
 follow.up.analysis = function(AgeNum = 5, 
-                              BaselineMobNum=25, 
-                              BaselineActNum=25, 
-                              BaselineCogNum=25, 
+                              BaselineMobNum = 25, 
+                              BaselineActNum = 25, 
+                              BaselineCogNum = 25, 
                               PScoreNum = 1, 
                               FacAdjNum = 3,
-                              ScoreNum=1, 
-                              FollowUpNum=4){
+                              ScoreNum = 1, 
+                              FollowUpNum = 4,
+                              Match.seed = 90){
   
-  matchrows=matching(AgeNum = AgeNum , BaselineMobNum=BaselineMobNum, BaselineActNum=BaselineActNum, 
-                     BaselineCogNum=BaselineCogNum, PScoreNum = PScoreNum, FacAdjNum = FacAdjNum)
+  # create the matched pairs
+  matchrows = matching(AgeNum = AgeNum, 
+                       BaselineMobNum = BaselineMobNum, 
+                       BaselineActNum = BaselineActNum, 
+                       BaselineCogNum = BaselineCogNum, 
+                       PScoreNum = PScoreNum, 
+                       FacAdjNum = FacAdjNum)
   
-  ####creation of unique (up to Control ID) one to one matched patients#### 
+  # create the unique (up to Study ID) one to one matched patients
+  matchrows.final = final.matching(Match.seed = Match.seed)
+
+  # Extract the data necessary for the paired t-test from the interpolated dataset ####
   
-  matchrows.final=c(0,0,0)
+  # initialize the dataset
+  Analysis.Data = rep(0,5)
   
-  for (i in unique(matchrows[matchrows[,3]==1,2])){
-    
-    set.seed(13)
-    
-    N=length(which(matchrows[,2]==i))
-    
-    j=ceiling(runif(1,0,N))
-    
-    matchrows.final=rbind(matchrows.final,
-                          matchrows[which(matchrows[,2]==i)[j],],
-                          matchrows[which(matchrows[,2]==i)[j]+1,])
-    
-  }
+  # initialize the vector of patients to be dropped when missing data occurs
+  drop.pair.IDs = 0
   
-  matchrows.final=matchrows.final[-1,]
-  
-  matchrows.final=matchrows.final[order(matchrows.final[,1]),]
-  
-  for (i in unique(matchrows.final[matchrows.final[,3]==0,2])[3:length(unique(matchrows.final[matchrows.final[,3]==0,2]))]){
-    
-    if (length(which(matchrows.final[,2]==i))>1){
-      
-      for (j in 2:length(which(matchrows.final[,2]==i))){
-        
-        matchrows.final[which(matchrows.final[,2]==i)[j]-1,1]=matchrows.final[which(matchrows.final[,2]==i)[j-1]-1,1]
-        matchrows.final[which(matchrows.final[,2]==i)[j],1]=matchrows.final[which(matchrows.final[,2]==i)[j-1],1]
-        
-      }  
-      
-    }
-    
-  }
-  
-  matchrows.final=matchrows.final[order(matchrows.final[,1]),]
-  
-  Analysis.Data=c(0,0,0,0,0)
-  
-  drop.pair.IDs=0
-  
+  # cycle through the set of one to one matches
   for (i in 1:dim(matchrows.final)[1]){
     
-    if  (length(Interpolate.Master[Interpolate.Master[,"ID"]==matchrows.final[i,"ID"] & 
-                                   Interpolate.Master[,"DaysId"]==FollowUpNum, ScoreVarName[ScoreNum]])==1){
+    # if the data is non missing for this ID and visit number add the next element to the analysis dataset 
+    # with their analysis variables 
+    if (length(Interpolate.Master[Interpolate.Master[, "ID"] == matchrows.final[i, "ID"] & 
+                                  Interpolate.Master[, "DaysId"] == FollowUpNum, ScoreVarName[ScoreNum]]) == 1){
       
       #add the next element to the analysis dataset with their analysis variables  
-      Analysis.Data=rbind(Analysis.Data, c(matchrows.final[i,1], matchrows.final[i,"ID"], 
-                                           matchrows.final[i,3], Interpolate.Master[Interpolate.Master[,"ID"]==matchrows.final[i,"ID"] & 
-                                                                                      Interpolate.Master[,"DaysId"]==FollowUpNum, ScoreVarName[ScoreNum]],
-                                           Interpolate.Master[Interpolate.Master[,"ID"]==matchrows.final[i,"ID"] & 
-                                                                Interpolate.Master[,"DaysId"]==FollowUpNum, paste("Baseline", ScoreName[ScoreNum], sep=".")]))
+      Analysis.Data = rbind(Analysis.Data, 
+                            c(matchrows.final[i, 1], 
+                              matchrows.final[i, "ID"],
+                              matchrows.final[i, 3], 
+                              Interpolate.Master[Interpolate.Master[, "ID"] == matchrows.final[i, "ID"] & 
+                                                   Interpolate.Master[, "DaysId"] == FollowUpNum, ScoreVarName[ScoreNum]],
+                              Interpolate.Master[Interpolate.Master[, "ID"] == matchrows.final[i, "ID"] &
+                                                   Interpolate.Master[, "DaysId"] == FollowUpNum, paste("Baseline", ScoreName[ScoreNum], sep=".")]))
       
     }else{
       
-      drop.pair.IDs=c(drop.pair.IDs, matchrows.final[i,1])
-      
+      # otherwise, add this patient's pair ID to the list of pair ID's to be removed before analysis
+      drop.pair.IDs = c(drop.pair.IDs, matchrows.final[i, 1])
       
     }
     
   }
   
-  Analysis.Data=Analysis.Data[-1,]
+  # delete the initial 0's
+  Analysis.Data = Analysis.Data[-1,]
   
-  drop.pair.IDs=drop.pair.IDs[-1]
+  # delete the initial 0
+  drop.pair.IDs = drop.pair.IDs[-1]
   
+  # check if any patients need to be removed before analysis
   if (length(drop.pair.IDs)>0){
     
+    #cycle through the list of patients that need to be removed before analysis and remove them
     for (j in 1:length(drop.pair.IDs)){
       
-      Analysis.Data=Analysis.Data[-which(Analysis.Data[,1]==drop.pair.IDs[j]),] 
+      Analysis.Data = Analysis.Data[-which(Analysis.Data[, 1] == drop.pair.IDs[j]), ] 
       
     }
     
   }
   
-  colnames(Analysis.Data)=c("Pair ID", "ID", "Group", "Score", "Baseline")
+  # provide column names for the dataset created for analysis
+  colnames(Analysis.Data)=c("PairID", "ID", "Group", "Score", "Baseline")
   
-  Controls=Analysis.Data[Analysis.Data[,"Group"]==0, "Score"]-Analysis.Data[Analysis.Data[,"Group"]==0, "Baseline"]
-  Studys=Analysis.Data[Analysis.Data[,"Group"]==1, "Score"]-Analysis.Data[Analysis.Data[,"Group"]==1, "Baseline"]
+  # create the vector to be used for a paired t-test ####
   
-  result=t.test(Studys, Controls, paired=TRUE, alternative = "greater")
+  #initialize the vector for test data
+  test.data = 0
   
+  # cycle through the matched pairs and calculate their difference from baseline and then 
+  # the treatment effect for that pair and add it to the vector for test data
+  for (k in unique(Analysis.Data[,"PairID"])){
+    
+    test.data = c(test.data, (Analysis.Data[Analysis.Data[, "PairID"] == k & Analysis.Data[, "Group"] == 1, "Score"] - Analysis.Data[Analysis.Data[, "PairID"] == k & Analysis.Data[, "Group"] == 1, "Baseline"])-
+                    (Analysis.Data[Analysis.Data[, "PairID"] == k & Analysis.Data[, "Group"] == 0, "Score"] - Analysis.Data[Analysis.Data[, "PairID"] == k & Analysis.Data[, "Group"] == 0, "Baseline"]))
+      
+  }
+  
+  # delete the initial 0
+  test.data = test.data[-1]
+  
+  # conduct a one-sided t-test with the data
+  result = t.test(test.data,
+                  alternative = "greater")
+  
+  # output the result
   return(result)
   
 }
+
   
 #################################End Function#######################################
+
 
 # conduct follow up analysis for each score and each time point ####
   
@@ -846,12 +901,37 @@ for (i in 1:3){
 }
 
 
-  
-####lmer analysis####
+# 5b. Mixed linear model analysis ####
 
-lmer.analysis=function(AgeNum = 5, BaselineMobNum=25, BaselineActNum=25, 
-                       BaselineCogNum=25, PScoreNum = 1, FacAdjNum = 2,
-                       ScoreNum=1, choice=1){
+#####################################Function#######################################
+#Name: lmer.analysis                                                               #
+#Author: Traymon Beavers                                                           #
+#Date Created: 4/15/2017                                                           #
+#Date Updated: 7/4/2017                                                            #
+#Purpose: To match the data based on gender, race, type of stroke, age, baseline   #
+#         functional outcome scores, propensity score, and facility adjustor number#
+#         and then fit a mixed linear model with each matched pair and patient as  #
+#         random effects and a user choice of fixed effects                        #
+#Variables: AgeNum-width for age partial matching                                  #
+#           BaselineMobNum-width for baseline mobility score partial matching      #
+#           BaselineActNum-width for baseline activity score partial matching      #
+#           BaselineCogNum-width for baseline cognitive score partial matching     #
+#           PScoreNum-width for propensity score partial matching                  #
+#           FacAdjNum-width for facility adjustor partial matching                 #
+#           ScoreNum-functional outcome to be analyzed: 1 for mobility, 2 for      #
+#                    activity, and 3 for cognitive                                 #
+#           FollowUpNum-visit number to analyze                                    #
+#                                                                                  #
+####################################################################################
+
+lmer.analysis=function(AgeNum = 5, 
+                       BaselineMobNum = 25, 
+                       BaselineActNum = 25, 
+                       BaselineCogNum = 25, 
+                       PScoreNum = 1, 
+                       FacAdjNum = 2,
+                       ScoreNum = 1, 
+                       Choice = 1){
   
   require(lmerTest)
   
@@ -941,19 +1021,19 @@ lmer.analysis=function(AgeNum = 5, BaselineMobNum=25, BaselineActNum=25,
   
   fmla4=as.formula(paste("Score.Diff.from.Baseline ~ ", paste(c("Group", "(ID | PairID)"), collapse="+")))
   
-  if (choice==1){
+  if (Choice==1){
     
     result=lmerTest::lmer(data=Analysis.Data, fmla1)
     
-  }else if (choice==2){
+  }else if (Choice==2){
     
     result=lmerTest::lmer(data=Analysis.Data, fmla2)
     
-  }else if (choice==3){
+  }else if (Choice==3){
     
     result=lmerTest::lmer(data=Analysis.Data, fmla3)
     
-  }else if (choice==4){
+  }else if (Choice==4){
     
     result=lmerTest::lmer(data=Analysis.Data, fmla4)
     
