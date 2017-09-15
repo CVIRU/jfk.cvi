@@ -33,7 +33,7 @@ OldMaster = OldMaster[, -1]
 Master = OldMaster[is.na(OldMaster[,"ID"]) == 0, ]
 
 
-# rename races other than black or white as "Other"
+# rename races other than black or white as "Other" ####
 Master[Master[,"Race"] == 3, "New.Race"] = "Black"
 
 Master[Master[,"Race"] == 5, "New.Race"] = "White"
@@ -41,39 +41,79 @@ Master[Master[,"Race"] == 5, "New.Race"] = "White"
 Master[Master[,"Race"] != 3 & Master[,"Race"] != 5, "New.Race"]="Other"
 
 
-# Create consistent missing value indicators for each functional outcome ####
+# Create consistent missing value indicators for variables used for analysis####
 
 # cycle through every observation in the master dataset
 for (i in 1:dim(Master)[1]){
   
   # change any missing mobility scores to NA
-  if(Master[i,"PT.AM.PAC.Basic.Mobility.Score"] == 9999
-     | Master[i,"PT.AM.PAC.Basic.Mobility.Score"] == 8888
-     | is.na(Master[i,"PT.AM.PAC.Basic.Mobility.Score"]) == 1){
+  if(Master[i, "PT.AM.PAC.Basic.Mobility.Score"] == 9999
+     | Master[i, "PT.AM.PAC.Basic.Mobility.Score"] == 8888
+     | is.na(Master[i, "PT.AM.PAC.Basic.Mobility.Score"]) == 1){
     
-    Master[i,"PT.AM.PAC.Basic.Mobility.Score"] = NA
+    Master[i, "PT.AM.PAC.Basic.Mobility.Score"] = NA
     
   }
   
   # change any missing activity scores to NA
-  if(Master[i,"OT.AM.Daily.Activity.Score"] == 9999
-     | Master[i,"OT.AM.Daily.Activity.Score"] == 8888
-     | Master[i,"OT.AM.Daily.Activity.Score"] == 9909
-     | is.na(Master[i,"OT.AM.Daily.Activity.Score"]) == 1){
+  if(Master[i, "OT.AM.Daily.Activity.Score"] == 9999
+     | Master[i, "OT.AM.Daily.Activity.Score"] == 8888
+     | Master[i, "OT.AM.Daily.Activity.Score"] == 9909
+     | is.na(Master[i, "OT.AM.Daily.Activity.Score"]) == 1){
     
-    Master[i,"OT.AM.Daily.Activity.Score"] = NA
+    Master[i, "OT.AM.Daily.Activity.Score"] = NA
     
   }
   
   # change any missing cognitive scores to NA
-  if(Master[i,"ST.AM.Applied.Cogn.Score"] == 9999
-     | Master[i,"ST.AM.Applied.Cogn.Score"] == 8888
-     | is.na(Master[i,"ST.AM.Applied.Cogn.Score"]) == 1){
+  if(Master[i, "ST.AM.Applied.Cogn.Score"] == 9999
+     | Master[i, "ST.AM.Applied.Cogn.Score"] == 8888
+     | is.na(Master[i, "ST.AM.Applied.Cogn.Score"]) == 1){
     
-    Master[i,"ST.AM.Applied.Cogn.Score"] = NA
+    Master[i, "ST.AM.Applied.Cogn.Score"] = NA
     
   }
   
+  # change any missing CVG variablesto NA
+  if(Master[i, "Cardiovascular.Group.Intensity.Mets."] == 9999
+     | Master[i, "Cardiovascular.Group.Intensity.Mets."] == 8888
+     | is.na(Master[i, "Cardiovascular.Group.Intensity.Mets."]) == 1){
+    
+    Master[i, "Cardiovascular.Group.Intensity.Mets."] = NA
+    
+  }
+  
+  if(Master[i, "Cardiovascular.Group.SessionsPerWeek"] == 9999
+     | Master[i, "Cardiovascular.Group.SessionsPerWeek"] == 8888
+     | is.na(Master[i, "Cardiovascular.Group.SessionsPerWeek"]) == 1){
+    
+    Master[i, "Cardiovascular.Group.SessionsPerWeek"] = NA
+    
+  }
+  
+  if(Master[i, "Cardiovascular.Group.Met.Mins"] == 99980001
+     | Master[i, "Cardiovascular.Group.Met.Mins"] == 78996544
+     | is.na(Master[i, "Cardiovascular.Group.Met.Mins"]) == 1){
+    
+    Master[i, "Cardiovascular.Group.Met.Mins"] = NA
+    
+  }
+  
+  if(Master[i, "Cardiovascular.Group.Tot.Mins"] == 9999
+     | Master[i, "Cardiovascular.Group.Tot.Mins"] == 8888
+     | is.na(Master[i, "Cardiovascular.Group.Tot.Mins"]) == 1){
+    
+    Master[i, "Cardiovascular.Group.Tot.Mins"] = NA
+    
+  }  
+  
+  if(Master[i, "Cardiovascular.Group.Tot.Sessions"] == 9999
+     | Master[i, "Cardiovascular.Group.Tot.Sessions"] == 8888
+     | is.na(Master[i, "Cardiovascular.Group.Tot.Sessions"]) == 1){
+    
+    Master[i, "Cardiovascular.Group.Tot.Sessions"] = NA
+    
+  }  
 }
 
 # Create a new dataset with only patients that eventually landed in relevant groups ####
@@ -118,11 +158,6 @@ NewMaster[, "Discharge.Mobility"] = rep(NA,dim(NewMaster)[1])
 NewMaster[, "Discharge.Activity"] = rep(NA,dim(NewMaster)[1])
 NewMaster[, "Discharge.Cognitive"] = rep(NA,dim(NewMaster)[1])
 
-# initialize the variable for every observation's score when they were assigned to their treatment group
-NewMaster[, "Baseline.Mobility"] = rep(NA,dim(NewMaster)[1])
-NewMaster[, "Baseline.Activity"] = rep(NA,dim(NewMaster)[1])
-NewMaster[, "Baseline.Cognitive"] = rep(NA,dim(NewMaster)[1])
-
 
 # initialize a counter for scrolling through IDs
 C=1
@@ -141,7 +176,7 @@ for (i in 1:dim(NewMaster)[1]){
   # calculate number of days after their stroke when they were assigned to their treatment group
   # for the current observation 
   NewMaster[i,"Days.After.At.Assignment"] =
-      NewMaster[NewMaster[,"DaysId"] == 3 & NewMaster[,"ID"] == NewMasterIDs[C], "Days_afterOnset"]
+      NewMaster[NewMaster[,"DaysId"] == 2 & NewMaster[,"ID"] == NewMasterIDs[C], "Days_afterOnset"]
 
   # calculate score when they were first admitted for each outcome for current observation
   NewMaster[i, "Admission.Mobility"] = NewMaster[NewMaster[, "DaysId"] == 1 & NewMaster[, "ID"] == NewMasterIDs[C], "PT.AM.PAC.Basic.Mobility.Score"]
@@ -153,10 +188,6 @@ for (i in 1:dim(NewMaster)[1]){
   NewMaster[i, "Discharge.Activity"] = NewMaster[NewMaster[, "DaysId"] == 2 & NewMaster[, "ID"] == NewMasterIDs[C], "OT.AM.Daily.Activity.Score"]
   NewMaster[i, "Discharge.Cognitive"] = NewMaster[NewMaster[, "DaysId"] == 2 & NewMaster[, "ID"] == NewMasterIDs[C], "ST.AM.Applied.Cogn.Score"]
 
-  # calculate score when they were assigned to their treatment group for each outcome for current observation
-  NewMaster[i, "Baseline.Mobility"] = NewMaster[NewMaster[, "DaysId"] == 3 & NewMaster[, "ID"] == NewMasterIDs[C], "PT.AM.PAC.Basic.Mobility.Score"]
-  NewMaster[i, "Baseline.Activity"] = NewMaster[NewMaster[, "DaysId"] == 3 & NewMaster[, "ID"] == NewMasterIDs[C], "OT.AM.Daily.Activity.Score"]
-  NewMaster[i, "Baseline.Cognitive"] = NewMaster[NewMaster[, "DaysId"] == 3 & NewMaster[, "ID"] == NewMasterIDs[C], "ST.AM.Applied.Cogn.Score"]
     
 }
   
@@ -458,7 +489,8 @@ Interpolate.Master.One = Interpolate.Master[Interpolate.Master[,"DaysId"] == 3,]
 # View(Interpolate.Master[,c("ID", "DaysId", "PT.AM.PAC.Basic.Mobility.Score",
 #                   "OT.AM.Daily.Activity.Score" ,"ST.AM.Applied.Cogn.Score")])
 
-# 4. Matching function ####
+# 4. Matching functions ####
+# 4a. Basic matching function
 #####################################Function#######################################
 #Name: matching                                                                    #
 #Author: Traymon Beavers                                                           #
@@ -467,18 +499,19 @@ Interpolate.Master.One = Interpolate.Master[Interpolate.Master[,"DaysId"] == 3,]
 #Purpose: To match the data based on gender, race, type of stroke, age, baseline   #
 #         functional outcome scores, propensity score, and facility adjustor number#
 #Variables: AgeNum-width for age partial matching                                  #
-#           BaselineMobNum-width for baseline mobility score partial matching      #
-#           BaselineActNum-width for baseline activity score partial matching      #
-#           BaselineCogNum-width for baseline cognitive score partial matching     #
+#           DischargeMobNum-width for baseline mobility score partial matching     #
+#           DischargeActNum-width for baseline activity score partial matching     #
+#           DischargeCogNum-width for baseline cognitive score partial matching    #
 #           PScoreNum-width for propensity score partial matching                  #
 #           FacAdjNum-width for facility adjustor partial matching                 #
 #                                                                                  #
 ####################################################################################
 
+
 matching = function(AgeNum = 2, 
-                    BaselineMobNum = 20, 
-                    BaselineActNum = 20, 
-                    BaselineCogNum = 20, 
+                    DischargeMobNum = 20, 
+                    DischargeActNum = 20, 
+                    DischargeCogNum = 20, 
                     PScoreNum = 1, 
                     FacAdjNum = 5){
   
@@ -489,9 +522,9 @@ matching = function(AgeNum = 2,
                                           "Age", 
                                           "Gender", 
                                           "New.Race", 
-                                          "Baseline.Mobility", 
-                                          "Baseline.Activity",
-                                          "Baseline.Cognitive",
+                                          "Discharge.Mobility", 
+                                          "Discharge.Activity",
+                                          "Discharge.Cognitive",
                                           "Type.of.Stroke",
                                           "ARHosp.JRI.Facility.Adjustor")]
   
@@ -516,15 +549,14 @@ matching = function(AgeNum = 2,
     for (j in 1:dim(Study.Characteristics)[1]){
       
       # add the matched pair and their pair ID to the list of matches if matching criteria is satisfied 
-      if (is.na(NewMaster.One.Control[i, "Baseline.Mobility"]) == 0 & 
-          NewMaster.One.Control[i, "Age"] >= (Study.Characteristics[j, "Age"] - AgeNum) &
+      if (NewMaster.One.Control[i, "Age"] >= (Study.Characteristics[j, "Age"] - AgeNum) &
           NewMaster.One.Control[i, "Age"] <= (Study.Characteristics[j, "Age"] + AgeNum) &
-          NewMaster.One.Control[i, "Baseline.Mobility"] >= (Study.Characteristics[j, "Baseline.Mobility"] - BaselineMobNum) &
-          NewMaster.One.Control[i, "Baseline.Mobility"] <= (Study.Characteristics[j, "Baseline.Mobility"] + BaselineMobNum) &
-          NewMaster.One.Control[i, "Baseline.Activity"] >= (Study.Characteristics[j, "Baseline.Activity"] - BaselineActNum) &
-          NewMaster.One.Control[i, "Baseline.Activity"] <= (Study.Characteristics[j, "Baseline.Activity"] + BaselineActNum) &
-          NewMaster.One.Control[i, "Baseline.Cognitive"] >= (Study.Characteristics[j, "Baseline.Cognitive"] - BaselineCogNum) &
-          NewMaster.One.Control[i, "Baseline.Cognitive"] <= (Study.Characteristics[j, "Baseline.Cognitive"] + BaselineCogNum) &
+          NewMaster.One.Control[i, "Discharge.Mobility"] >= (Study.Characteristics[j, "Discharge.Mobility"] - DischargeMobNum) &
+          NewMaster.One.Control[i, "Discharge.Mobility"] <= (Study.Characteristics[j, "Discharge.Mobility"] + DischargeMobNum) &
+          NewMaster.One.Control[i, "Discharge.Activity"] >= (Study.Characteristics[j, "Discharge.Activity"] - DischargeActNum) &
+          NewMaster.One.Control[i, "Discharge.Activity"] <= (Study.Characteristics[j, "Discharge.Activity"] + DischargeActNum) &
+          NewMaster.One.Control[i, "Discharge.Cognitive"] >= (Study.Characteristics[j, "Discharge.Cognitive"] - DischargeCogNum) &
+          NewMaster.One.Control[i, "Discharge.Cognitive"] <= (Study.Characteristics[j, "Discharge.Cognitive"] + DischargeCogNum) &
           NewMaster.One.Control[i,"Gender"] == Study.Characteristics[j,"Gender"] &
           NewMaster.One.Control[i,"New.Race"] == Study.Characteristics[j, "New.Race"] &
           NewMaster.One.Control[i,"Type.of.Stroke"] == Study.Characteristics[j, "Type.of.Stroke"] &
@@ -562,7 +594,7 @@ matching = function(AgeNum = 2,
 
 #################################End Function#######################################
 
-# 4a. One to one matching function ####
+# 4b. One to one matching function ####
 
 #####################################Function#######################################
 #Name: final.matching                                                              #
@@ -577,7 +609,7 @@ matching = function(AgeNum = 2,
 ####################################################################################
 
 final.matching = function(Matchrows = matchrows,
-                          Match.seed = 90){
+                          Match.seed = 976){
   
   # initialize the matrix to hold the set of one to one matches
   matchrow.final = c(0,0,0)
@@ -645,13 +677,133 @@ final.matching = function(Matchrows = matchrows,
 
 #################################End Function#######################################
 
-# 4b. Check and optimize function output ####
+#####################################Function#######################################
+#Name: reverse.matching                                                            #
+#Author: Traymon Beavers                                                           #
+#Date Created: 3/29/2017                                                           #
+#Date Updated: 7/3/2017                                                            #
+#Purpose: To match the data based on gender, race, type of stroke, age, baseline   #
+#         functional outcome scores, propensity score, and facility adjustor number#
+#Variables: AgeNum-width for age partial matching                                  #
+#           DischargeMobNum-width for baseline mobility score partial matching     #
+#           DischargeActNum-width for baseline activity score partial matching     #
+#           DischargeCogNum-width for baseline cognitive score partial matching    #
+#           PScoreNum-width for propensity score partial matching                  #
+#           FacAdjNum-width for facility adjustor partial matching                 #
+#                                                                                  #
+####################################################################################
+
+reverse.matching = function(AgeNum = 5, 
+                            DischargeMobNum = 20, 
+                            DischargeActNum = 20, 
+                            DischargeCogNum = 20, 
+                            PScoreNum = 1, 
+                            FacAdjNum = 2){
+  
+  # create a data matrix for the characteristics to be used for matching for each 
+  # patient in the deceased group
+  Deceased.Characteristics = NewMaster.One[NewMaster.One[,"Deceased_Y.N"] == TRUE,
+                                        c("ID", 
+                                          "Age", 
+                                          "Gender", 
+                                          "New.Race", 
+                                          "Discharge.Mobility", 
+                                          "Discharge.Activity",
+                                          "Discharge.Cognitive",
+                                          "Type.of.Stroke",
+                                          "ARHosp.JRI.Facility.Adjustor")]
+  
+  # initialize a progress bar to check the progress of the matching
+  pb = txtProgressBar(min = 0, 
+                      max = dim(Deceased.Characteristics)[1], 
+                      initial = 0)
+  
+  # initialize a vector to contain the matches
+  result=c(0,0,0)
+  
+  # begin the counter for pair ID
+  D = 1
+  
+  # cycle through the control group observations
+  for (i in 1:dim(NewMaster.One.Study)[1]){
+    
+    #update progress bar to reflect that the function is attempting to match the next patient
+    setTxtProgressBar(pb, i)
+    
+    #cycle through the study characteristics
+    for (j in 1:dim(Deceased.Characteristics)[1]){
+      
+      # add the matched pair and their pair ID to the list of matches if matching criteria is satisfied 
+      if (NewMaster.One.Study[i, "Age"] >= (Deceased.Characteristics[j, "Age"] - AgeNum) &
+          NewMaster.One.Study[i, "Age"] <= (Deceased.Characteristics[j, "Age"] + AgeNum) &
+          NewMaster.One.Study[i, "Discharge.Mobility"] >= (Deceased.Characteristics[j, "Discharge.Mobility"] - DischargeMobNum) &
+          NewMaster.One.Study[i, "Discharge.Mobility"] <= (Deceased.Characteristics[j, "Discharge.Mobility"] + DischargeMobNum) &
+          NewMaster.One.Study[i, "Discharge.Activity"] >= (Deceased.Characteristics[j, "Discharge.Activity"] - DischargeActNum) &
+          NewMaster.One.Study[i, "Discharge.Activity"] <= (Deceased.Characteristics[j, "Discharge.Activity"] + DischargeActNum) &
+          NewMaster.One.Study[i, "Discharge.Cognitive"] >= (Deceased.Characteristics[j, "Discharge.Cognitive"] - DischargeCogNum) &
+          NewMaster.One.Study[i, "Discharge.Cognitive"] <= (Deceased.Characteristics[j, "Discharge.Cognitive"] + DischargeCogNum) &
+          NewMaster.One.Study[i,"Gender"] == Deceased.Characteristics[j,"Gender"] &
+          NewMaster.One.Study[i,"New.Race"] == Deceased.Characteristics[j, "New.Race"] &
+          NewMaster.One.Study[i,"Type.of.Stroke"] == Deceased.Characteristics[j, "Type.of.Stroke"] &
+          # NewMaster.One.Study[i,"Propensity.Score"] >= (Deceased.Characteristics[j,"Propensity.Score"] - PScoreNum) &
+          # NewMaster.One.Study[i,"Propensity.Score"] <= (Deceased.Characteristics[j,"Propensity.Score"] + PScoreNum) &
+          NewMaster.One.Study[i,"ARHosp.JRI.Facility.Adjustor"] >= (Deceased.Characteristics[j, "ARHosp.JRI.Facility.Adjustor"] - FacAdjNum) & 
+          NewMaster.One.Study[i,"ARHosp.JRI.Facility.Adjustor"] <= (Deceased.Characteristics[j, "ARHosp.JRI.Facility.Adjustor"] + FacAdjNum)){
+        
+        result=rbind(result, 
+                     c(D, Deceased.Characteristics[j,"ID"], 1), 
+                     c(D, NewMaster.One.Study[i,"ID"], 0))
+        
+        # increase the pair ID counter
+        D=D+1
+        
+      }
+      
+    }
+    
+  }
+  
+  # finish progress bar
+  close(pb)
+  
+  # give names to what each column represents
+  colnames(result)=c("PairID", "ID", "Group")
+  
+  # delete the initial 0's
+  result=result[-1,]
+  
+  # output the resulting matches
+  return(result)
+  
+}
+
+reverse.rows = reverse.matching()
+
+length(unique(reverse.rows[reverse.rows[,3] == 1, 2]))
+length(unique(reverse.rows[reverse.rows[,3] == 0, 2]))
+
+
+for (i in seq(1,(dim(reverse.rows)[1]-1),2)){
+
+print(NewMaster.One[NewMaster.One[,"ID"] %in% reverse.rows[i:(i+1),2],c("ID", "Group",
+                                                                   "Age", 
+                                                                   "Gender", 
+                                                                   "New.Race", 
+                                                                   "Admission.Mobility", 
+                                                                   "Admission.Activity",
+                                                                   "Admission.Cognitive",
+                                                                   "Type.of.Stroke",
+                                                                   "ARHosp.JRI.Facility.Adjustor")])
+  
+}
+
+# 4c. Check and optimize function output ####
 matchrows = matching(AgeNum = 5,
-                     BaselineMobNum = 25,
-                     BaselineActNum = 25, 
-                     BaselineCogNum = 25, 
+                     DischargeMobNum = 25,
+                     DischargeActNum = 25, 
+                     DischargeCogNum = 25, 
                      PScoreNum = 1, 
-                     FacAdjNum = 3)
+                     FacAdjNum = 2)
 
 # count the number of study patients matched
 length(unique(matchrows[matchrows[,3] == 1, 2]))
@@ -669,35 +821,35 @@ length(unique(matchrows[matchrows[,3] == 1, 2]))
 # 
 #   # initialize the matrix to hold the set of one to one matches
 #   matchrow.final = c(0,0,0)
-#   
-#   # cycle through the unique study patients in the matches created 
+# 
+#   # cycle through the unique study patients in the matches created
 #   for (i in unique(matchrows[matchrows[,3]==1,2])){
-#     
+# 
 #     # set the seed
 #     set.seed(k)
-#     
+# 
 #     # count the number of control patients matched to this study patient
 #     N = length(which(matchrows[,2] == i))
-#     
+# 
 #     # randomly choose which control patient will be move to the one-to-one set of matches
 #     j = ceiling(runif(1, 0, N))
-#     
+# 
 #     # update the set of one to one matches to include the new match
 #     matchrow.final = rbind(matchrow.final,
 #                            matchrows[which(matchrows[,2] == i)[j], ],
 #                            matchrows[(which(matchrows[,2] == i)[j] + 1), ])
-#     
+# 
 #   }
-#   
+# 
 #   # delete the initial 0's
 #   matchrow.final = matchrow.final[-1,]
-#   
+# 
 #   # initialize the number of non missing observations
 #   Non.Missing.Num = 0
-#   
+# 
 #   # cycle through the IDs in the set of one to one matches
 #   for (j in unique(matchrow.final[,2])){
-#   
+# 
 #     # update the number of non missing observations to include the number of non missing
 #     # observations this ID has
 #     Non.Missing.Num = Non.Missing.Num + length(Interpolate.Master[Interpolate.Master[, "ID"] == j &
@@ -707,10 +859,10 @@ length(unique(matchrows[matchrows[,3] == 1, 2]))
 #                                                                                                                 Interpolate.Master[, "DaysId"] >= 1 &
 #                                                                                                                 Interpolate.Master[, "DaysId"] <= 8,
 #                                                                                                                 "PT.AM.PAC.Basic.Mobility.Score"]))
-#   
-#   
+# 
+# 
 #   }
-#   
+# 
 #   # update A to include the number of non missing observations for this set of one to one matches
 #   NA.Num = c(NA.Num, Non.Missing.Num)
 # 
@@ -718,7 +870,7 @@ length(unique(matchrows[matchrows[,3] == 1, 2]))
 #   UC.Num = c(UC.Num, length(unique(matchrow.final[matchrow.final[,3] == 0, 2])))
 # 
 #   # print seeds that have number of non missing observations and unique controls above a desired threshold
-#   if (length(unique(matchrow.final[matchrow.final[,3] == 0, 2])) >= 42 & Non.Missing.Num >= 650){
+#   if (length(unique(matchrow.final[matchrow.final[,3] == 0, 2])) == max(UC.Num) & Non.Missing.Num == max(NA.Num)){
 # 
 #     print(k)
 #     print(c(length(unique(matchrow.final[matchrow.final[, 3] == 0, 2])), Non.Missing.Num))
@@ -730,13 +882,15 @@ length(unique(matchrows[matchrows[,3] == 1, 2]))
 # # check what the maximum number of missing observations and maximum number of unique controls are
 # max(NA.Num)
 # max(UC.Num)
-
+# 
 
 # Check creation of unique (up to Study ID) one to one matches ####
 matchrow.final = final.matching()
 
 # count the number of control patients matched in the one to one matches
 length(unique(matchrow.final[matchrow.final[,3] == 0, 2]))
+
+# Check that the matches are correct
 
 
 # # Make matches for powerpoint ####
@@ -754,9 +908,9 @@ length(unique(matchrow.final[matchrow.final[,3] == 0, 2]))
 # 5. Analysis of continous functional outcomes ####
 
 # Notes about set of one to one matches ####
-### (5, 25, 25, 25, 1, 3) yields 58 out of 85 study ID matches
-### 46 unique controls 684 nonmissing obs with seed 90
-### maximum is 46 and 684
+### (5, 25, 25, 25, 1, 2) yields 60 out of 85 study ID matches
+### 49 unique controls 727 nonmissing obs with seed 976
+### maximum is 49 and 727
 
 # 5a. Follow up analysis ####
 
@@ -764,14 +918,14 @@ length(unique(matchrow.final[matchrow.final[,3] == 0, 2]))
 #Name: follow.up.analysis                                                          #
 #Author: Traymon Beavers                                                           #
 #Date Created: 4/15/2017                                                           #
-#Date Updated: 7/3/2017                                                            #
+#Date Updated: 7/17/2017                                                           #
 #Purpose: To match the data based on gender, race, type of stroke, age, baseline   #
 #         functional outcome scores, propensity score, and facility adjustor number#
 #         and then perform a paired t-test with each match acting as a pair        #
 #Variables: AgeNum-width for age partial matching                                  #
-#           BaselineMobNum-width for baseline mobility score partial matching      #
-#           BaselineActNum-width for baseline activity score partial matching      #
-#           BaselineCogNum-width for baseline cognitive score partial matching     #
+#           DischargeMobNum-width for baseline mobility score partial matching     #
+#           DischargeActNum-width for baseline activity score partial matching     #
+#           DischargeCogNum-width for baseline cognitive score partial matching    #
 #           PScoreNum-width for propensity score partial matching                  #
 #           FacAdjNum-width for facility adjustor partial matching                 #
 #           ScoreNum-functional outcome to be analyzed: 1 for mobility, 2 for      #
@@ -782,20 +936,20 @@ length(unique(matchrow.final[matchrow.final[,3] == 0, 2]))
 ####################################################################################
   
 follow.up.analysis = function(AgeNum = 5, 
-                              BaselineMobNum = 25, 
-                              BaselineActNum = 25, 
-                              BaselineCogNum = 25, 
+                              DischargeMobNum = 25, 
+                              DischargeActNum = 25, 
+                              DischargeCogNum = 25, 
                               PScoreNum = 1, 
-                              FacAdjNum = 3,
+                              FacAdjNum = 2,
                               ScoreNum = 1, 
                               FollowUpNum = 4,
-                              Match.seed = 90){
+                              Match.seed = 976){
   
   # create the matched pairs
   matchrows = matching(AgeNum = AgeNum, 
-                       BaselineMobNum = BaselineMobNum, 
-                       BaselineActNum = BaselineActNum, 
-                       BaselineCogNum = BaselineCogNum, 
+                       DischargeMobNum = DischargeMobNum, 
+                       DischargeActNum = DischargeActNum, 
+                       DischargeCogNum = DischargeCogNum, 
                        PScoreNum = PScoreNum, 
                        FacAdjNum = FacAdjNum)
   
@@ -826,7 +980,7 @@ follow.up.analysis = function(AgeNum = 5,
                               Interpolate.Master[Interpolate.Master[, "ID"] == matchrows.final[i, "ID"] & 
                                                    Interpolate.Master[, "DaysId"] == FollowUpNum, ScoreVarName[ScoreNum]],
                               Interpolate.Master[Interpolate.Master[, "ID"] == matchrows.final[i, "ID"] &
-                                                   Interpolate.Master[, "DaysId"] == FollowUpNum, paste("Baseline", ScoreName[ScoreNum], sep=".")]))
+                                                   Interpolate.Master[, "DaysId"] == FollowUpNum, paste("Discharge", ScoreName[ScoreNum], sep=".")]))
       
     }else{
       
@@ -856,7 +1010,11 @@ follow.up.analysis = function(AgeNum = 5,
   }
   
   # provide column names for the dataset created for analysis
-  colnames(Analysis.Data)=c("PairID", "ID", "Group", "Score", "Baseline")
+  colnames(Analysis.Data)=c("PairID", 
+                            "ID", 
+                            "Group", 
+                            "Score", 
+                            "Discharge")
   
   # create the vector to be used for a paired t-test ####
   
@@ -867,8 +1025,10 @@ follow.up.analysis = function(AgeNum = 5,
   # the treatment effect for that pair and add it to the vector for test data
   for (k in unique(Analysis.Data[,"PairID"])){
     
-    test.data = c(test.data, (Analysis.Data[Analysis.Data[, "PairID"] == k & Analysis.Data[, "Group"] == 1, "Score"] - Analysis.Data[Analysis.Data[, "PairID"] == k & Analysis.Data[, "Group"] == 1, "Baseline"])-
-                    (Analysis.Data[Analysis.Data[, "PairID"] == k & Analysis.Data[, "Group"] == 0, "Score"] - Analysis.Data[Analysis.Data[, "PairID"] == k & Analysis.Data[, "Group"] == 0, "Baseline"]))
+    test.data = c(test.data, (Analysis.Data[Analysis.Data[, "PairID"] == k & Analysis.Data[, "Group"] == 1, "Score"] - 
+                                Analysis.Data[Analysis.Data[, "PairID"] == k & Analysis.Data[, "Group"] == 1, "Discharge"])-
+                    (Analysis.Data[Analysis.Data[, "PairID"] == k & Analysis.Data[, "Group"] == 0, "Score"] - 
+                       Analysis.Data[Analysis.Data[, "PairID"] == k & Analysis.Data[, "Group"] == 0, "Discharge"]))
       
   }
   
@@ -942,43 +1102,9 @@ lmer.analysis=function(AgeNum = 5,
   
   ####creation of unique (up to Study ID) one to one matched patients#### 
   
-  matchrows.final=c(0,0,0)
-  
-  for (i in unique(matchrows[matchrows[,3]==1,2])){
+  matchrows.final = final.matching(Match.seed = 90)
     
-    set.seed(13)
     
-    N=length(which(matchrows[,2]==i))
-    
-    j=ceiling(runif(1,0,N))
-    
-    matchrows.final=rbind(matchrows.final,
-                          matchrows[which(matchrows[,2]==i)[j],],
-                          matchrows[which(matchrows[,2]==i)[j]+1,])
-    
-  }
-  
-  matchrows.final=matchrows.final[-1,]
-  
-  matchrows.final=matchrows.final[order(matchrows.final[,1]),]
-  
-  for (i in unique(matchrows.final[matchrows.final[,3]==0,2])[3:length(unique(matchrows.final[matchrows.final[,3]==0,2]))]){
-    
-    if (length(which(matchrows.final[,2]==i))>1){
-      
-      for (j in 2:length(which(matchrows.final[,2]==i))){
-        
-        matchrows.final[which(matchrows.final[,2]==i)[j]-1,1]=matchrows.final[which(matchrows.final[,2]==i)[j-1]-1,1]
-        matchrows.final[which(matchrows.final[,2]==i)[j],1]=matchrows.final[which(matchrows.final[,2]==i)[j-1],1]
-        
-      }  
-      
-    }
-    
-  }
-  
-  matchrows.final=matchrows.final[order(matchrows.final[,1]),]
-  
   #set a vector for the variables to analyzed
   Analysis.Variables=c("ID", "Group", "Age", "Gender", "New.Race", "Type.of.Stroke",
                        paste("Baseline", ScoreName[ScoreNum], sep="."), 
@@ -1043,15 +1169,15 @@ lmer.analysis=function(AgeNum = 5,
   
 }
 
-word=lmer.analysis(ScoreNum=1, choice=1)
+word=lmer.analysis(ScoreNum=1, Choice=3)
 
 summary(word)
 
-word=lmer.analysis(ScoreNum=2, choice=2)
+word=lmer.analysis(ScoreNum=2, Choice=3)
 
 summary(word)
 
-word=lmer.analysis(ScoreNum=3, choice=2)
+word=lmer.analysis(ScoreNum=3, Choice=3)
 
 summary(word)
 
@@ -3729,6 +3855,135 @@ t.test(slopetest)
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+# CVG Graph ####
+View(Master.Study[is.na(Master.Study[,"Cardiovascular.Group.Met.Mins"])==0 &
+                    Master.Study[,"Cardiovascular.Group.Met.Mins"]!=99980001 &
+                  Master.Study[,"Cardiovascular.Group.Met.Mins"]!=78996544 &
+                    Master.Study[,"Cardiovascular.Group.Met.Mins"]!=0 &
+                    Master.Study[,"DaysId"]>4
+                    ,c("ID", "DaysId", "Days_afterOnset", "Cardiovascular.Group.Met.Mins", "Cardiovascular.Group.SessionsPerWeek", "Cardiovascular.Group.Tot.Sessions")])
+
+  tmp1 <- Master.Study[is.na(Master.Study[,"Cardiovascular.Group.Met.Mins"])==0 &
+                         Master.Study[,"Cardiovascular.Group.Met.Mins"]!=99980001 &
+                         Master.Study[,"Cardiovascular.Group.Met.Mins"]!=78996544 &
+                         Master.Study[,"Cardiovascular.Group.Met.Mins"]!=0 &
+                         is.na(Master.Study[,"Cardiovascular.Group.SessionsPerWeek"])==0 &
+                         Master.Study[,"Cardiovascular.Group.SessionsPerWeek"]!=9999,]
+  
+  p1 <- ggplot(data=tmp1,
+               aes(x=Days_afterOnset,
+                   y=Cardiovascular.Group.Met.Mins,
+                   group=ID)) +
+    geom_line() +
+    geom_point(col = "green") +
+    scale_x_continuous("Days After Stroke") +
+    scale_y_continuous("Mets Per Minute") +
+    ggtitle("Mets Per Minute by Days After Stroke") +
+    theme(plot.title = element_text(hjust = 0.5))
+  
+  tiff(filename = "tmp/CVGgraph.tiff",
+       height = 8,
+       width = 8,
+       units = 'in',
+       res = 300,
+       compression = "lzw+p")
+  
+  print(p1)
+  
+  graphics.off()
+  
+  
+# CVG Analysis ####
+
+word=lmerTest::lmer(data=tmp1, Cardiovascular.Group.Met.Mins ~ Days_afterOnset + (1 | ID))
+
+summary(word)
+  
+word=lmerTest::lmer(data=tmp1, Cardiovascular.Group.Met.Mins ~ as.factor(DaysId) + (1 | ID))
+
+summary(word)
+
+word=lmerTest::lmer(data=tmp1, Cardiovascular.Group.Met.Mins ~ Cardiovascular.Group.SessionsPerWeek + (1 | ID))
+
+summary(word)
+
+word=lmerTest::lmer(data=tmp1, Cardiovascular.Group.Met.Mins ~ Cardiovascular.Group.Tot.Sessions + (1 | ID))
+
+summary(word)
+
+word=lmerTest::lmer(data=tmp1, Cardiovascular.Group.Met.Mins ~ Days_afterOnset + as.factor(DaysId) + Cardiovascular.Group.SessionsPerWeek + Cardiovascular.Group.Tot.Sessions + (1 | ID))
+
+summary(word)
+
+word=lmerTest::lmer(data=tmp1, Cardiovascular.Group.Met.Mins ~ Cardiovascular.Group.SessionsPerWeek + Cardiovascular.Group.Tot.Sessions + (1 | ID))
+
+summary(word)
+
+
+
+
+
+
+
+# Reasoning for using Discharge as Baseline
+# The idea is we want to show patients in the study group have stronger endpoint compared to their INITIAL
+
+
+
+
+
+
+mean(Interpolate.Master[Interpolate.Master[,"DaysId"]==2 & 
+                          Interpolate.Master[,"ID"] %in% StudyGroupIDs,
+                        "PT.AM.PAC.Basic.Mobility.Score"], na.rm=T)
+
+mean(Interpolate.Master[Interpolate.Master[,"DaysId"]==2 & 
+                          Interpolate.Master[,"ID"] %in% ControlGroupIDs,
+                        "PT.AM.PAC.Basic.Mobility.Score"], na.rm=T)
+
+
+
+
+
+
+
+x=Interpolate.Master[Interpolate.Master[,"DaysId"]==4 & 
+                          Interpolate.Master[,"ID"] %in% StudyGroupIDs,
+                        "PT.AM.PAC.Basic.Mobility.Score"]-Interpolate.Master[Interpolate.Master[,"DaysId"]==2 & 
+                                                                               Interpolate.Master[,"ID"] %in% StudyGroupIDs,
+                                                                             "PT.AM.PAC.Basic.Mobility.Score"]
+
+y=Interpolate.Master[Interpolate.Master[,"DaysId"]==4 & 
+                          Interpolate.Master[,"ID"] %in% ControlGroupIDs,
+                        "PT.AM.PAC.Basic.Mobility.Score"]-Interpolate.Master[Interpolate.Master[,"DaysId"]==2 & 
+                                                                               Interpolate.Master[,"ID"] %in% ControlGroupIDs,
+                                                                             "PT.AM.PAC.Basic.Mobility.Score"]
+
+
+t.test(x,y,alternative = "greater")
+
+x=Interpolate.Master[Interpolate.Master[,"DaysId"]==7 & 
+                       Interpolate.Master[,"ID"] %in% StudyGroupIDs,
+                     "PT.AM.PAC.Basic.Mobility.Score"]
+
+y=Interpolate.Master[Interpolate.Master[,"DaysId"]==7 & 
+                       Interpolate.Master[,"ID"] %in% ControlGroupIDs,
+                     "PT.AM.PAC.Basic.Mobility.Score"]
+
+t.test(x,y)
+
+View(NewMaster.One[NewMaster.One[,"Group"]=="Study Group" & NewMaster.One[,"Admission.Mobility"]<38, c("ID", "Group", "Admission.Mobility", "Discharge.Mobility")])
 
 
 
