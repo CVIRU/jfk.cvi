@@ -379,5 +379,3 @@ NewMaster.One.Study = NewMaster.One[NewMaster.One[, "Group"] == "Study Group", ]
 NewMaster.One.Control = NewMaster.One[NewMaster.One[, "Group"] == "Control Group", ]
 
 
-
-5

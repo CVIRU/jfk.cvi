@@ -3,7 +3,7 @@
 #Author: Traymon Beavers                                                           #
 #Depends: create matches.R, ggplot2, lmerTest, gridExtra, survival, data.table     #
 #Date Created: 7/21/2017                                                           #
-#Date Updated: 9/15/2017                                                           #
+#Date Updated: 9/20/2017                                                           #
 #Purpose: To perform analysis on the stroke rehabilitation program mortality data  #
 #         by matching patients in the study group with patients in the control     #
 #         group and then conducting various statistical procedures with respect to #
@@ -315,12 +315,58 @@ tmp.data2 = data.table(Time = c(0,
                                      1,
                                      1,
                                      tmp.sf$surv),
-                       Group = c(rep("Study Group", 2),
-                                 rep("Control Group", length(tmp.sf$surv)+1)))
+                       Group = c(rep("SRP Participant Group", 2),
+                                 rep("Non-Participant Group", length(tmp.sf$surv)+1)))
 
 write.csv(tmp.data2,
           "media/Mortality/Data Tables/Survival_Curve_After_Matching.csv",
           row.names = FALSE)
+
+# Create survival curve plot (after matching) ####
+
+ggplot(tmp.data2,
+       aes(x = Time,
+           y = Surv.Prob,
+           colour = Group,
+           group = Group)) +
+  geom_step() +
+  scale_colour_manual(values = c("red",
+                                 "green")) +
+  scale_x_continuous("Days After Stroke") +
+  scale_y_continuous("Survival",
+                     limits = c(0, 1)) +
+  ggtitle("Survival Curves for All-Cause Mortality by Rehabilitation Group") +
+  theme(plot.title = element_text(hjust = 0.5),
+        legend.position = "top")
+
+ggsave("media/Mortality/Survival Curve (After Matching).tiff", 
+       device = "tiff",
+       width = 8,
+       height = 5, 
+       dpi = 300,
+       compression = "lzw")
+
+# Create survival curve plot (after matching) (no color) ####
+
+ggplot(tmp.data2,
+       aes(x = Time,
+           y = Surv.Prob,
+           group = Group)) +
+  geom_step(aes(linetype = Group)) +
+  scale_x_continuous("Days After Stroke") +
+  scale_y_continuous("Survival",
+                     limits = c(0, 1)) +
+  scale_linetype_manual(values = c("dashed", "solid")) +
+  ggtitle("Survival Curves for All-Cause Mortality by Rehabilitation Group") +
+  theme(plot.title = element_text(hjust = 0.5),
+        legend.position = "top")
+
+ggsave("media/Mortality/Survival Curve (After Matching) (no color).tiff", 
+       device = "tiff",
+       width = 8,
+       height = 5, 
+       dpi = 300,
+       compression = "lzw")
 
 # Combine above datasets ####
 
@@ -337,7 +383,7 @@ write.csv(tmp.data3,
           "media/Mortality/Data Tables/Survival_Curve_Both.csv",
           row.names = FALSE)
 
-# Create survival curve plot ####
+# Create survival curve plot (before and after matching) ####
 
 ggplot(tmp.data3,
              aes(x = Time,

@@ -1,12 +1,17 @@
 #################################Program Description################################
 #Name: CVG                                                                         #
 #Author: Traymon Beavers                                                           #
-#Depends: ggplot, lme4, lmerTest, MASS                                             #
+#Depends: upload data.R, ggplot2, lmerTest                                         #
 #Date Created: 7/21/2017                                                           #
-#Date Updated: 9/14/2017                                                           #
+#Date Updated: 9/20/2017                                                           #
 #Purpose: To perform analysis on the stroke rehabilitation program cardiovascular  #
 #         group data, as well as provide a collection of plots                     #
 ####################################################################################
+
+# Load the necessary source code and packages ####
+source("source/Traymon's Source Code/Data Reconfiguration/upload data.R")
+library(ggplot2)
+library(lmerTest)
 
 # Reconfigure data for analysis ####
 
@@ -37,10 +42,10 @@ CVG.data.long[, "ID"] = rep(CVG.data.wide[, "ID"],
                             each = 5)
 
 CVG.data.long[, "Follow.Up"] = c("Baseline",
-                                 "9 Weeks",
-                                 "18 Weeks",
-                                 "27 Weeks",
-                                 "36 Weeks")
+                                 "9 Sessions",
+                                 "18 Sessions",
+                                 "27 Sessions",
+                                 "36 Sessions")
 
 
 for (i in unique(CVG.data.wide[, "ID"])){
@@ -69,16 +74,14 @@ CVG.data.long[, "Diff.from.Baseline"] = CVG.data.long[, "Met.Minutes"] - CVG.dat
 
 CVG.data.long.2 = CVG.data.long[CVG.data.long[, "Follow.Up"] != "Baseline", ]
 
-CVG.data.long.2[, "Time"] = c(9,18,27,36)
+CVG.data.long.2[, "Number of Sessions"] = c(9,18,27,36)
 
 # Fit a mixed effects linear model ####
 
 word = lmerTest::lmer(data = CVG.data.long.2, 
-                      Diff.from.Baseline ~ Time + Freq + Total + (1|ID))
+                      Diff.from.Baseline ~ `Number of Sessions` + Freq + (1|ID))
 
 summary(word)
-
-anova(word)
 
 # Perform a one sided one sample test ####
 
@@ -94,183 +97,168 @@ t.test(CVG.data.long.2[CVG.data.long.2[, "Follow.Up"] == "27 Weeks", "Diff.from.
 t.test(CVG.data.long.2[CVG.data.long.2[, "Follow.Up"] == "36 Weeks", "Diff.from.Baseline"],
        alternative = "greater")
 
-1-(sum(is.na(CVG.data.long[CVG.data.long[,"Follow.Up"]=="36 Weeks","Met.Minutes"]))/length(CVG.data.long[CVG.data.long[,"Follow.Up"]=="36 Weeks","Met.Minutes"]))
-
-length(CVG.data.long[CVG.data.long[,"Follow.Up"]=="36 Weeks","Met.Minutes"])-sum(is.na(CVG.data.long[CVG.data.long[,"Follow.Up"]=="36 Weeks","Met.Minutes"]))
-
-length(CVG.data.long[CVG.data.long[,"Follow.Up"]=="36 Weeks","Met.Minutes"])
 
 
-
-
-# 6c. CVG plot ####
+# Create bar graphs ####
 # Create dataset ####
-for.6c = NewMaster[is.na(NewMaster[,"CVG.Baseline"]) == 0 &
-                     NewMaster[,"CVG.Baseline"] != 0,c(
-                       "CVG.Baseline", 
-                       "CVG.9.Met.Minutes", 
-                       "CVG.18.Met.Minutes", 
-                       "CVG.27.Met.Minutes",
-                       "CVG.36.Met.Minutes")]
 
-for.6c[, "B.AI"] = for.6c[, "CVG.Baseline"] - for.6c[, "CVG.Baseline"]
-for.6c[, "9.AI"] = for.6c[, "CVG.9.Met.Minutes"] - for.6c[, "CVG.Baseline"]
-for.6c[, "18.AI"] = for.6c[, "CVG.18.Met.Minutes"] - for.6c[, "CVG.Baseline"]
-for.6c[, "27.AI"] = for.6c[, "CVG.27.Met.Minutes"] - for.6c[, "CVG.Baseline"]
-for.6c[, "36.AI"] = for.6c[, "CVG.36.Met.Minutes"] - for.6c[, "CVG.Baseline"]
+tmp = colMeans(CVG.data.wide, na.rm = TRUE)[-c(1,7,8)]
 
-for.6c[, "B.PI"] = 100*for.6c[, "B.AI"]/for.6c[, "CVG.Baseline"]
-for.6c[, "9.PI"] = 100*for.6c[, "9.AI"]/for.6c[, "CVG.Baseline"]
-for.6c[, "18.PI"] = 100*for.6c[, "18.AI"]/for.6c[, "CVG.Baseline"]
-for.6c[, "27.PI"] = 100*for.6c[, "27.AI"]/for.6c[, "CVG.Baseline"]
-for.6c[, "36.PI"] = 100*for.6c[, "36.AI"]/for.6c[, "CVG.Baseline"]
+tmp = rbind.data.frame(tmp,
+                       100*(tmp-tmp[1])/tmp[1])
 
-for.6c.means = colMeans(for.6c, na.rm = TRUE)
+colnames(tmp) = c("Baseline",
+                  "9 Sessions",
+                  "18 Sessions",
+                  "27 Sessions",
+                  "36 Sessions")
 
-for.6c.plot = cbind.data.frame(c("Baseline", "9 weeks", "18 weeks", "27 weeks", "36 weeks"), 
-                               melt(for.6c.means)[1:5,], 
-                               round(melt(for.6c.means)[6:10,], 
-                                     digits = 1),
-                               round(melt(for.6c.means)[11:15,], 
-                                     digits = 1))
+tmp = as.data.frame(t(tmp))
 
-colnames(for.6c.plot) = c("Time", 
-                          "METS.Min", 
-                          "Absolute.Improvement", 
-                          "Percent.Improvement")
+colnames(tmp) = c("Average.METS-Min",
+                  "Average.Percent.Improvement.from.Baseline")
 
-for (i in 1:5){
-  
-  for.6c.plot[i,"Percent.Improvement"] = paste(for.6c.plot[i,"Percent.Improvement"], "%", sep = "")
-  
-}
+tmp[, "Number.of.Sessions"] = rownames(tmp)
 
-for.6c.plot[, "METS.Min"] = round(for.6c.plot[, "METS.Min"], 0)
+rownames(tmp) = 1:dim(tmp)[1]
 
-for.6c.plot[,"Group"] = "Dummy"
+write.csv(tmp,
+          "media/CVG/Data Tables/CVGMetsMin.csv",
+          row.names = FALSE)
 
-# write.csv(for.6c.plot, 
-#           "tmp/Plot Data Tables/CVGMETSMin.csv",
-#           row.names = FALSE)
+# Average METS-Min bar graph ####
 
+# make font sizes for all succeeding plots bigger
+theme_set(theme_grey(base_size = 15)) 
 
-# 6c1. Absolute improvement bar graph ####
+tmp[,3] = factor(tmp[,3],
+                 levels = c("Baseline",
+                            "9 Sessions",
+                            "18 Sessions",
+                            "27 Sessions",
+                            "36 Sessions"))
 
-ggplot(data = for.6c.plot, 
-       aes(x = Time,
-           y = METS.Min,
-           fill = Time)) +
-  scale_x_discrete("Follow Up Time",
-                   limits = c("Baseline", 
-                              "9 weeks",
-                              "18 weeks",
-                              "27 weeks",
-                              "36 weeks")) +
-  scale_y_continuous("METS/Min") +
-  ggtitle("Average METS/Min by Follow Up Time",
-          subtitle = "Number in bars is average absolute improvement from baseline") +
-  geom_bar(stat = "identity", position = "identity") +
-  geom_text(aes(label = Absolute.Improvement,
-                vjust = 2,
+ggplot(data = tmp, 
+       aes(x = Number.of.Sessions,
+           y = `Average.METS-Min`)) +
+  scale_x_discrete("Number of Sessions") +
+  scale_y_continuous("METs-Min") +
+  ggtitle("Average METs-Min by Number of Sessions") +
+  geom_bar(stat = "identity", 
+           position = "identity",
+           fill = "lightblue") +
+  geom_text(aes(label = round(tmp[, "Average.METS-Min"],0),
+                vjust = -0.3,
                 size = 5)) +
-  geom_text(aes(label = c("", rep("P-Value < 0.001", 4)),
-                vjust = -0.5,
+  geom_text(aes(label = c("", rep("P-value < 0.0001",4)),
+                x = 1:5,
+                y = rep(5,5),
                 size = 5)) +
-  scale_fill_manual(name = "",
-                    values = c("purple", 
-                               "blue", 
-                               "dark green", 
-                               "red", 
-                               "black")) +
   theme(plot.title = element_text(hjust = 0.5), 
         plot.subtitle = element_text(hjust = 0.5),
         legend.position = "none")
 
-ggsave("C:/git_local/jfk.cvi/Plots/Paper Plots/METS Min Bar Graph.png",
-       width = 16,
-       height = 9)
+ggsave("media/CVG/METs-Min Bar Graph.tiff",
+       device = "tiff",
+       width = 10,
+       height = 5, 
+       dpi = 300,
+       compression = "lzw")
 
+# Percent improvement bar graph ####
 
-
-# 6c2. Percent improvement bar graph ####
-
-ggplot(data = for.6c.plot[1:5,], 
-       aes(x = Time,
-           y = METS.Min,
-           fill = Time)) +
-  scale_x_discrete("Follow Up Time",
-                   limits = c("Baseline", 
-                              "9 weeks",
-                              "18 weeks",
-                              "27 weeks",
-                              "36 weeks")) +
-  scale_y_continuous("METS/Min") +
-  ggtitle("Average METS/Min by Follow Up Time",
-          subtitle = "Number in bars is average percent improvement from baseline") +
-  geom_bar(stat = "identity", position = "identity") +
-  geom_text(aes(label = Percent.Improvement,
-                vjust = 2)) +
-  scale_fill_manual(name = "",
-                    values = c("purple", "blue", "green", "red", "black")) +
-  theme(plot.title = element_text(hjust = 0.5), 
-        plot.subtitle = element_text(hjust = 0.5),
-        legend.position = "none")
-
-
-
-
-
-# 6c3. METS/Min line graph ####
-
-ggplot(data = for.6c.plot, 
-       aes(x = Time,
-           y = METS.Min,
-           color = Time,
-           group = Group)) +
-  scale_x_discrete("Follow Up Time",
-                   limits = c("Baseline", 
-                              "9 weeks",
-                              "18 weeks",
-                              "27 weeks",
-                              "36 weeks")) +
-  scale_y_continuous("METS/Min") +
-  ggtitle("Average METS/Min by Follow Up Time") +
-  geom_point(size = 2) +
-  geom_line(color = "black") +
-  geom_text(aes(label = METS.Min,
-                vjust = -0.5,
+ggplot(data = tmp, 
+       aes(x = Number.of.Sessions,
+           y = Average.Percent.Improvement.from.Baseline)) +
+  scale_x_discrete("Number of Sessions") +
+  scale_y_continuous("METs-Min") +
+  ggtitle("Average METs-Min by Number of Sessions",
+          subtitle = "Percent Improvement from Baseline") +
+  geom_bar(stat = "identity", 
+           position = "identity",
+           fill = "lightblue") +
+  geom_text(aes(label = paste(round(tmp[, "Average.Percent.Improvement.from.Baseline"],0),
+                              "%",
+                              sep = ""),
+                vjust = -0.3,
                 size = 5)) +
-  scale_color_manual(name = "",
-                     values = c("purple", 
-                                "blue", 
-                                "dark green", 
-                                "red", 
-                                "black")) +
-  annotate("text",
-           x = 4,
-           y = 65,
-           label = "P-value < 0.001",
-           size = 5) +
-  annotate("text",
-           x = 4,
-           y = 62.5,
-           label = "Estimate = 1.4",
-           size = 5) +
   theme(plot.title = element_text(hjust = 0.5), 
         plot.subtitle = element_text(hjust = 0.5),
         legend.position = "none")
 
-ggsave("C:/git_local/jfk.cvi/Plots/Paper Plots/METS Min Line Graph.png",
-       width = 16,
-       height = 9)
+ggsave("media/CVG/Percent Bar Graph.tiff",
+       device = "tiff",
+       width = 10,
+       height = 5, 
+       dpi = 300,
+       compression = "lzw")
 
 
+# Average METS-Min bar graph (no color) ####
 
+# make font sizes for all succeeding plots bigger
+theme_set(theme_grey(base_size = 15)) 
 
+tmp[,3] = factor(tmp[,3],
+                 levels = c("Baseline",
+                            "9 Sessions",
+                            "18 Sessions",
+                            "27 Sessions",
+                            "36 Sessions"))
 
+ggplot(data = tmp, 
+       aes(x = Number.of.Sessions,
+           y = `Average.METS-Min`)) +
+  scale_x_discrete("Number of Sessions") +
+  scale_y_continuous("METs-Min") +
+  ggtitle("Average METs-Min by Number of Sessions") +
+  geom_bar(stat = "identity", 
+           position = "identity",
+           fill = "black") +
+  geom_text(aes(label = round(tmp[, "Average.METS-Min"],0),
+                vjust = -0.3,
+                size = 5)) +
+  geom_text(aes(label = c("", rep("P-value < 0.0001",4)),
+                x = 1:5,
+                y = rep(5,5),
+                size = 5),
+                color = "white") +
+  theme(plot.title = element_text(hjust = 0.5), 
+        plot.subtitle = element_text(hjust = 0.5),
+        legend.position = "none")
 
+ggsave("media/CVG/METs-Min Bar Graph (no color).tiff",
+       device = "tiff",
+       width = 10,
+       height = 5, 
+       dpi = 300,
+       compression = "lzw")
 
+# Percent improvement bar graph (no color) ####
 
+ggplot(data = tmp, 
+       aes(x = Number.of.Sessions,
+           y = Average.Percent.Improvement.from.Baseline)) +
+  scale_x_discrete("Number of Sessions") +
+  scale_y_continuous("METs-Min") +
+  ggtitle("Average METs-Min by Number of Sessions",
+          subtitle = "Percent Improvement from Baseline") +
+  geom_bar(stat = "identity", 
+           position = "identity",
+           fill = "black") +
+  geom_text(aes(label = paste(round(tmp[, "Average.Percent.Improvement.from.Baseline"],0),
+                              "%",
+                              sep = ""),
+                vjust = -0.3,
+                size = 5)) +
+  theme(plot.title = element_text(hjust = 0.5), 
+        plot.subtitle = element_text(hjust = 0.5),
+        legend.position = "none")
 
-
+ggsave("media/CVG/Percent Bar Graph (no color).tiff",
+       device = "tiff",
+       width = 10,
+       height = 5, 
+       dpi = 300,
+       compression = "lzw")
 

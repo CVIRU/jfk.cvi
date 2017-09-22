@@ -4,7 +4,7 @@
 #Depends: create matches.R, follow up analysis.R, lmer analysis.R, ggplot2,        # 
 #         lmerTest, gridExtra                                                      #
 #Date Created: 7/21/2017                                                           #
-#Date Updated: 9/14/2017                                                           #
+#Date Updated: 9/20/2017                                                           #
 #Purpose: To perform analysis on the stroke rehabilitation program functional      #
 #         outcome data by matching patients in the study group with patients in    #
 #         the control group and then conducting various statistical procedures     #
@@ -12,7 +12,7 @@
 #         plots                                                                    #
 ####################################################################################
 
-# Load the necessary source code and functions ####
+# Load the necessary source code, functions, and packages ####
 source("source/Traymon's Source Code/Analysis/create matches.R")
 source("source/Traymon's Source Code/Functions/Analysis Functions/follow up analysis.R")
 source("source/Traymon's Source Code/Functions/Analysis Functions/lmer analysis.R")
@@ -178,12 +178,12 @@ tmp2[, "col.ggplot"] = c("blue",
                          rep("red",4))
 
 # assign shapes for each follow up
-tmp2[, "shape.ggplot"] = c(15, 
-                           16, 
-                           rep(17,4),
-                           15,
-                           16,
-                           rep(25,4))
+tmp2[, "shape.ggplot"] = c("Admission", 
+                           "Discharge", 
+                           rep("SRP Paricipant Group",4),
+                           "Admission", 
+                           "Discharge",
+                           rep("Non-Paricipant Group",4))
 
 
 # cycle through the rehabilitation groups
@@ -239,10 +239,168 @@ for (j in tmp2[, "DaysId"][1:2]){
   
 }
 
+
+tmp2[tmp2[, "Group"] == "Study Group", "Group"] = "SRP Participant Group"
+
+tmp2[tmp2[, "Group"] == "Control Group", "Group"] = "Non-Participant Group"
+
+tmp2 = melt(tmp2, id.vars = c("Group", 
+                       "DaysId", 
+                       "col.ggplot", 
+                       "shape.ggplot"),
+     measure.vars = c("PT.AM.PAC.Basic.Mobility.Score", 
+                      "OT.AM.Daily.Activity.Score",
+                      "ST.AM.Applied.Cogn.Score"))
+
+colnames(tmp2)[5:6] = c("Score.Type", "Score")
+
+tmp2[,"Score.Type"] =  factor(tmp2[,"Score.Type"], 
+                              levels = c(levels(tmp2[,"Score.Type"]),
+                                         "Basic Mobility",
+                                         "Daily Activity",
+                                         "Applied Cognitive"))
+
+tmp2[1:12,"Score.Type"] = "Basic Mobility"
+
+tmp2[13:24,"Score.Type"] = "Daily Activity"
+
+tmp2[25:36,"Score.Type"] = "Applied Cognitive"
+
 # save the dataset as a csv file
 write.csv(tmp2,
           "media/Functional Outcomes/Data Tables/AM_PAC_After_Matching.csv",
           row.names = FALSE)
+
+# Create line plot for each score (After Matching) ####
+
+# create line plot
+ggplot(data = tmp2,
+       aes(x = DaysId,
+           y = Score,
+           group = Group)) +
+  facet_wrap(~Score.Type, nrow = 1) +
+  geom_text(data = data.frame(Score.Type = c("Basic Mobility",
+                                             "Daily Activity",
+                                             "Applied Cognitive"),
+                              label = rep("P-Value < 0.001", 3)),
+            aes(x = 5, 
+                y = 37.5, 
+                label = label),
+            inherit.aes = FALSE,
+            size = 5) +
+  geom_text(data = data.frame(Score.Type = c("Basic Mobility",
+                                             "Daily Activity",
+                                             "Applied Cognitive"),
+                              label = c("Estimate = 9.47",
+                                        "Estimate = 9.59",
+                                        "Estimate = 5.73")),
+                              aes(x = 5, 
+                                  y = 32.5, 
+                                  label = label),
+                              inherit.aes = FALSE,
+                              size = 5) +
+  ggtitle("Average Score by Follow Up Time Point") +
+  geom_line() +
+  geom_point(aes(x = DaysId,
+                 y = Score,
+                 color = col.ggplot),
+             size = 3) +
+  scale_color_manual("", 
+                     values = c("blue", 
+                                "darkmagenta",
+                                "green",
+                                "red"),
+                     labels = c("Admission",
+                                "Discharge",
+                                "SRP Participant Group",
+                                "Non-Participant Group")) +
+  scale_x_discrete("Follow Up Time Point",
+                   limits = c("Admission", 
+                              "Discharge", 
+                              "30 Day", 
+                              "60 Day", 
+                              "90 Day", 
+                              "120 Day")) +
+  scale_y_continuous("Score",
+                     limits = c(30, 65)) +
+  theme(legend.position = "top",
+        plot.title = element_text(hjust = 0.5),        
+        axis.text.x = element_text(angle = 45,
+                                   hjust = 1))
+
+# save the plot
+ggsave("media/Functional Outcomes/AM PAC Average Line Graphs (After Matching).tiff",
+       device = "tiff",
+       width = 10,
+       height = 5,
+       dpi = 300,
+       compression = "lzw")
+
+# Create line plot for each score (After Matching) (no color) ####
+
+# create line plot
+ggplot(data = tmp2,
+       aes(x = DaysId,
+           y = Score,
+           group = Group)) +
+  facet_wrap(~Score.Type, nrow = 1) +
+  geom_text(data = data.frame(Score.Type = c("Basic Mobility",
+                                             "Daily Activity",
+                                             "Applied Cognitive"),
+                              label = rep("P-Value < 0.001", 3)),
+            aes(x = 5, 
+                y = 37.5, 
+                label = label),
+            inherit.aes = FALSE,
+            size = 5) +
+  geom_text(data = data.frame(Score.Type = c("Basic Mobility",
+                                             "Daily Activity",
+                                             "Applied Cognitive"),
+                              label = c("Estimate = 9.47",
+                                        "Estimate = 9.59",
+                                        "Estimate = 5.73")),
+            aes(x = 5, 
+                y = 32.5, 
+                label = label),
+            inherit.aes = FALSE,
+            size = 5) +
+  ggtitle("Average Score by Follow Up Time Point") +
+  geom_line() +
+  geom_point(aes(x = DaysId,
+                 y = Score,
+                 shape = shape.ggplot),
+             fill = "black",
+             size = 3) +
+  scale_shape_manual("",
+                     values = c(15,
+                                16,
+                                25,
+                                17),
+                     labels = c("Admission",
+                                "Discharge",
+                                "Non-Participant Group",
+                                "SRP Participant Group")) +
+  scale_x_discrete("Follow Up Time Point",
+                   limits = c("Admission", 
+                              "Discharge", 
+                              "30 Day", 
+                              "60 Day", 
+                              "90 Day", 
+                              "120 Day")) +
+  scale_y_continuous("Score",
+                     limits = c(30, 65)) +
+  theme(legend.position = "top",
+        plot.title = element_text(hjust = 0.5),        
+        axis.text.x = element_text(angle = 45,
+                                   hjust = 1))
+
+# save the plot
+ggsave("media/Functional Outcomes/AM PAC Average Line Graphs (After Matching) (no color).tiff",
+       device = "tiff",
+       width = 10,
+       height = 5,
+       dpi = 300,
+       compression = "lzw")
 
 # Combine above datasets ####
 
