@@ -3,11 +3,11 @@
 #Author: Traymon Beavers                                                           #
 #Depends: ggplot2                                                                  #
 #Date Created: 7/21/2017                                                           #
-#Date Updated: 9/20/2017                                                           #
+#Date Updated: 11/28/2017                                                          #
 #Purpose: To perform analysis on the stroke rehabilitation program modified rankin #
 #         score data by matching patients in the study group with patients in the  #
 #         control group and then conducting various statistical procedures with    #
-#         respect to the matched pairs, as well as provide a collection of plots   #                                                                    #
+#         respect to the matched pairs, as well as provide a collection of plots   #
 ####################################################################################
 
 # Load the necessary source code and functions ####
@@ -15,17 +15,17 @@ source("source/Traymon's Source Code/Analysis/create matches.R")
 library(ggplot2)
 library(gridExtra)
 
-line2user <- function(line, side) {
-  lh <- par('cin')[2] * par('cex') * par('lheight')
-  x_off <- diff(grconvertX(0:1, 'inches', 'user'))
-  y_off <- diff(grconvertY(0:1, 'inches', 'user'))
-  switch(side,
-         `1` = par('usr')[3] - line * y_off * lh,
-         `2` = par('usr')[1] - line * x_off * lh,
-         `3` = par('usr')[4] + line * y_off * lh,
-         `4` = par('usr')[2] + line * x_off * lh,
-         stop("side must be 1, 2, 3, or 4", call.=FALSE))
-}
+# line2user <- function(line, side) {
+#   lh <- par('cin')[2] * par('cex') * par('lheight')
+#   x_off <- diff(grconvertX(0:1, 'inches', 'user'))
+#   y_off <- diff(grconvertY(0:1, 'inches', 'user'))
+#   switch(side,
+#          `1` = par('usr')[3] - line * y_off * lh,
+#          `2` = par('usr')[1] - line * x_off * lh,
+#          `3` = par('usr')[4] + line * y_off * lh,
+#          `4` = par('usr')[2] + line * x_off * lh,
+#          stop("side must be 1, 2, 3, or 4", call.=FALSE))
+# }
 
 # Reconfigure data for analysis ####
 modrankin.data = as.data.frame(matrix(NA, 60, 6))
@@ -66,7 +66,7 @@ for (i in unique(modrankin.data[, "Group"])){
                                                                                match.subgroup[, "DaysId"] == j & 
                                                                                is.na(match.subgroup[, "ModRankinScore"]) == 0,
                                                                              "ModRankinScore"]), 
-              digits = 3)
+              digits = 4)
       
       modrankin.data[modrankin.data[, "Group"] == i & modrankin.data[, "DaysId"] == j & modrankin.data[, "Score"] == k, "Number"] = 
         length(match.subgroup[match.subgroup[, "Group"] == i & 
@@ -124,11 +124,232 @@ tmp.table[2,] = modrankin.data[modrankin.data[,"Group"] == "Control Group" &
 
 chisq.test(tmp.table)
 
-# Create stacked bar graph plot ####
+# Conduct two sample Z-test for equal proportions for all timepoints ####
 
-modrankin.data[modrankin.data[, "Group"] == "Study Group", "Group"] = "SRP Participant Group"
+# create a table for the number of patients in each category of modrankin score
+tmp.table = matrix(NA, 2, 2)
 
-modrankin.data[modrankin.data[, "Group"] == "Control Group", "Group"] = "Non-Participant Group"
+colnames(tmp.table) = c("0-2", "3-5")
+
+rownames(tmp.table) = c("Study Group", "Control Group")
+
+# conduct a two sample Z-test for daysid = 3
+tmp.table[1,1] = sum(modrankin.data[modrankin.data[,"Group"] == "Study Group" &
+                                 modrankin.data[,"DaysId"] == 3 &
+                                 modrankin.data[,"Score"] >= 0 &
+                                 modrankin.data[,"Score"] <= 2, "Number"])          
+
+tmp.table[2,1] = sum(modrankin.data[modrankin.data[,"Group"] == "Control Group" &
+                                     modrankin.data[,"DaysId"] == 3 &
+                                     modrankin.data[,"Score"] >= 0 &
+                                     modrankin.data[,"Score"] <= 2, "Number"])
+
+tmp.table[1,2] = sum(modrankin.data[modrankin.data[,"Group"] == "Study Group" &
+                                     modrankin.data[,"DaysId"] == 3, "Number"])  - tmp.table[1,1]
+
+tmp.table[2,2] = sum(modrankin.data[modrankin.data[,"Group"] == "Control Group" &
+                                      modrankin.data[,"DaysId"] == 3, "Number"]) - tmp.table[2,1]
+
+
+prop.test(tmp.table)
+
+
+# conduct a two sample Z-test for daysid = 5
+tmp.table[1,1] = sum(modrankin.data[modrankin.data[,"Group"] == "Study Group" &
+                                      modrankin.data[,"DaysId"] == 5 &
+                                      modrankin.data[,"Score"] >= 0 &
+                                      modrankin.data[,"Score"] <= 2, "Number"])          
+
+tmp.table[2,1] = sum(modrankin.data[modrankin.data[,"Group"] == "Control Group" &
+                                      modrankin.data[,"DaysId"] == 5 &
+                                      modrankin.data[,"Score"] >= 0 &
+                                      modrankin.data[,"Score"] <= 2, "Number"])
+
+tmp.table[1,2] = sum(modrankin.data[modrankin.data[,"Group"] == "Study Group" &
+                                      modrankin.data[,"DaysId"] == 5, "Number"])  - tmp.table[1,1]
+
+tmp.table[2,2] = sum(modrankin.data[modrankin.data[,"Group"] == "Control Group" &
+                                      modrankin.data[,"DaysId"] == 5, "Number"]) - tmp.table[2,1]
+
+
+prop.test(tmp.table)
+
+# conduct a two sample Z-test for daysid = 6
+tmp.table[1,1] = sum(modrankin.data[modrankin.data[,"Group"] == "Study Group" &
+                                      modrankin.data[,"DaysId"] == 6 &
+                                      modrankin.data[,"Score"] >= 0 &
+                                      modrankin.data[,"Score"] <= 2, "Number"])          
+
+tmp.table[2,1] = sum(modrankin.data[modrankin.data[,"Group"] == "Control Group" &
+                                      modrankin.data[,"DaysId"] == 6 &
+                                      modrankin.data[,"Score"] >= 0 &
+                                      modrankin.data[,"Score"] <= 2, "Number"])
+
+tmp.table[1,2] = sum(modrankin.data[modrankin.data[,"Group"] == "Study Group" &
+                                      modrankin.data[,"DaysId"] == 6, "Number"])  - tmp.table[1,1]
+
+tmp.table[2,2] = sum(modrankin.data[modrankin.data[,"Group"] == "Control Group" &
+                                      modrankin.data[,"DaysId"] == 6, "Number"]) - tmp.table[2,1]
+
+
+prop.test(tmp.table)
+
+
+# Calculate percentages of higher/lower scores for each group/timepoint ####
+
+low.high = list(c(0,2), c(3,5))
+
+for (i in c(3,5,6)){
+  
+  for (j in c("Study Group", "Control Group")){
+    
+    for (k in 1:2){
+      
+      print(c(i,j,k))
+      
+      print(sum(modrankin.data[modrankin.data[ , "Group"] == j &
+                           modrankin.data[ , "DaysId"] == i &
+                           modrankin.data[ , "Score"] >= low.high[[k]][1] &
+                           modrankin.data[ , "Score"] <= low.high[[k]][2], "Percent"]))
+      
+    }
+    
+  }
+  
+}
+
+# # Create stacked bar graph plot ####
+# 
+# modrankin.data[modrankin.data[, "Group"] == "Study Group", "Group"] = "SRP Participant Group"
+# 
+# modrankin.data[modrankin.data[, "Group"] == "Control Group", "Group"] = "Non-Participant Group"
+# 
+# ggplot(data = modrankin.data[modrankin.data[, "Follow.Up.Id"] != "180 Day" &
+#                                modrankin.data[, "Follow.Up.Id"] != "365 Day", ], 
+#        aes(x = Group,
+#            y = Percent,
+#            fill = Score,
+#            label = Percent)) +
+#   facet_wrap(~Follow.Up.Id, 
+#              nrow = 1) +
+#   geom_text(data = data.frame(Follow.Up.Id = c("30 Day",
+#                                                "90 Day",
+#                                                "120 Day"), 
+#                               label = c("P-Value < 0.001",
+#                                         "P-Value = 0.014",
+#                                         "P-Value = 0.040")), 
+#             aes(x = 1.5, y = 1.05, label = label),
+#             inherit.aes = FALSE) +
+#   scale_x_discrete("Rehabilitation Group") +
+#   scale_y_continuous("Percent of Patients with Score") +
+#   ggtitle("Modified Rankin Score by Follow Up Time") +
+#   geom_bar(stat = "identity", position = "fill") +
+#   scale_fill_manual(name = "Modified Rankin Score",
+#                     values = c("green", "blue", "cadetblue3", "yellow", "orange", "red")) +
+#   theme(plot.title = element_text(hjust = 0.5), 
+#         plot.subtitle = element_text(hjust = 0.5), 
+#         axis.text.x = element_text(angle = 30,
+#                                    hjust = 1),
+#         legend.position = "top")
+# 
+# ggsave("media/Modified Rankin Score/Mod Rankin Score Stacked Bar Graph (After Matching).tiff",
+#        device = "tiff",
+#        width = 8.25,
+#        height = 6,
+#        dpi = 300, 
+#        compression = "lzw")
+# 
+
+# # Create stacked bar graph plot (no color) ####
+# 
+# modrankin.data[modrankin.data[, "Group"] == "Study Group", "Group"] = "SRP-participant"
+# 
+# modrankin.data[modrankin.data[, "Group"] == "Control Group", "Group"] = "nonparticipant"
+# 
+# for.lines = data.frame(Follow.Up.Id = rep(c("30 Day",
+#                                             "90 Day",
+#                                             "120 Day"), 
+#                                           each = 2),
+#                        Group = rep(c("SRP-participant",
+#                                      "nonparticipant"),
+#                                    3),
+#                        high.prop = c(1-.37,
+#                                      1-.27,
+#                                      1-.65,
+#                                      1-.23,
+#                                      1-.64,
+#                                      1-.38),
+#                        x1 = rep(c(1.55,0.55),
+#                                 3),
+#                        x2 = rep(c(2.45,1.45),
+#                                 3))
+# 
+# ggplot(data = modrankin.data[modrankin.data[, "Follow.Up.Id"] != "180 Day" &
+#                                modrankin.data[, "Follow.Up.Id"] != "365 Day", ], 
+#        aes(x = Group,
+#            y = Percent,
+#            fill = Score,
+#            label = Percent)) +
+#   facet_wrap(~Follow.Up.Id, 
+#              nrow = 1) +
+#   geom_text(data = data.frame(Follow.Up.Id = c("30 Day",
+#                                                "90 Day",
+#                                                "120 Day"), 
+#                               label = c("P = 0.320",
+#                                         "P < 0.001",
+#                                         "P = 0.025")), 
+#             aes(x = 1.5, y = 1.05, label = label),
+#             inherit.aes = FALSE) +
+#   scale_x_discrete("Rehabilitation Group") +
+#   scale_y_continuous("Percent of Patients with Score",
+#                      labels = paste(seq(0,100,25))) +
+#   ggtitle("Modified Rankin Scale Score") +
+#   geom_bar(stat = "identity", position = "fill") +
+#   geom_segment(data = for.lines,
+#                aes(x = x1,
+#                    xend = x2,
+#                    y = high.prop,
+#                    yend = high.prop),
+#                inherit.aes = FALSE,
+#                lwd = 1.25) +
+#   scale_fill_manual(name = "Modified Rankin Scale Score",
+#                     values = gray.colors(6, end = 0.8)) +
+#   theme(plot.title = element_text(hjust = 0.5), 
+#         plot.subtitle = element_text(hjust = 0.5), 
+#         axis.text.x = element_text(angle = 30,
+#                                    hjust = 1),
+#         legend.position = "top")
+# 
+# ggsave("media/Modified Rankin Score/Mod Rankin Score Stacked Bar Graph (After Matching) (no color).tiff",
+#        device = "tiff",
+#        width = 8.25,
+#        height = 6,
+#        dpi = 300, 
+#        compression = "lzw")
+
+# Create stacked bar graph plot (no color) (control label) ####
+
+modrankin.data[modrankin.data[, "Group"] == "Study Group", "Group"] = "SRP-participant"
+
+modrankin.data[modrankin.data[, "Group"] == "Control Group", "Group"] = "Control"
+
+for.lines = data.frame(Follow.Up.Id = rep(c("30 Day",
+                                            "90 Day",
+                                            "120 Day"), 
+                                          each = 2),
+                       Group = rep(c("SRP-participant",
+                                     "Control"),
+                                   3),
+                       high.prop = c(1-.37,
+                                     1-.27,
+                                     1-.65,
+                                     1-.23,
+                                     1-.64,
+                                     1-.38),
+                       x1 = rep(c(1.55,0.55),
+                                3),
+                       x2 = rep(c(2.45,1.45),
+                                3))
 
 ggplot(data = modrankin.data[modrankin.data[, "Follow.Up.Id"] != "180 Day" &
                                modrankin.data[, "Follow.Up.Id"] != "365 Day", ], 
@@ -141,134 +362,141 @@ ggplot(data = modrankin.data[modrankin.data[, "Follow.Up.Id"] != "180 Day" &
   geom_text(data = data.frame(Follow.Up.Id = c("30 Day",
                                                "90 Day",
                                                "120 Day"), 
-                              label = c("P-Value < 0.001",
-                                        "P-Value = 0.014",
-                                        "P-Value = 0.040")), 
+                              label = c("P = 0.320",
+                                        "P < 0.001",
+                                        "P = 0.025")), 
             aes(x = 1.5, y = 1.05, label = label),
             inherit.aes = FALSE) +
   scale_x_discrete("Rehabilitation Group") +
-  scale_y_continuous("Percent of Patients with Score") +
-  ggtitle("Modified Rankin Score by Follow Up Time") +
+  scale_y_continuous("Percent of Patients with Score",
+                     labels = paste(seq(0,100,25))) +
+  ggtitle("Modified Rankin Scale Score") +
   geom_bar(stat = "identity", position = "fill") +
-  scale_fill_manual(name = "Modified Rankin Score",
-                    values = c("green", "blue", "cadetblue3", "yellow", "orange", "red")) +
+  geom_segment(data = for.lines,
+               aes(x = x1,
+                   xend = x2,
+                   y = high.prop,
+                   yend = high.prop),
+               inherit.aes = FALSE,
+               lwd = 1.25) +
+  scale_fill_manual(name = "Modified Rankin Scale Score",
+                    values = gray.colors(6, end = 0.8)) +
   theme(plot.title = element_text(hjust = 0.5), 
         plot.subtitle = element_text(hjust = 0.5), 
         axis.text.x = element_text(angle = 30,
                                    hjust = 1),
         legend.position = "top")
 
-ggsave("media/Modified Rankin Score/Mod Rankin Score Stacked Bar Graph (After Matching).tiff",
+ggsave("media/Modified Rankin Score/Mod Rankin Score Stacked Bar Graph (After Matching) (no color) (control label).tiff",
        device = "tiff",
        width = 8.25,
        height = 6,
        dpi = 300, 
        compression = "lzw")
 
+# Create stacked bar graph plot (no color) no ggplot ####
 
-# Create stacked bar graph plot (no color) ####
-
-modrankin.data[modrankin.data[, "Group"] == "Study Group", "Group"] = "SRP Participant Group"
-
-modrankin.data[modrankin.data[, "Group"] == "Control Group", "Group"] = "Non-Participant Group"
-
-# create a table for the number of patients in each category of modrankin score
-tmp.table = matrix(NA, 2, 6)
-
-colnames(tmp.table) = c("0", 
-                        "1", 
-                        "2", 
-                        "3", 
-                        "4", 
-                        "5")
-
-rownames(tmp.table) = c("SRP Group", 
-                        "NP Group")
-
-par(mfrow = c(1,4),
-    mar = c(7,4,5.5,2) + 0.1)
-
-# layout(matrix(c(1,2,3,4),
-#               nrow = 2,
-#               ncol = 4,
-#               byrow = TRUE),
-#        heights = c(0.4,0.4,0.2))
-
-tmp.table[1,] = modrankin.data[modrankin.data[,"Group"] == "SRP Participant Group" & 
-                                 modrankin.data[,"DaysId"] == 3, "Percent"]          
-
-tmp.table[2,] = modrankin.data[modrankin.data[,"Group"] == "Non-Participant Group" & 
-                                 modrankin.data[,"DaysId"] == 3, "Percent"]
-
-barplot(t(tmp.table)[6:1, 2:1],
-        density = c(7.5,20,10,15,7.5,10),
-        angle = c(30,60,90,150,120,0),
-        main = paste("",
-                     "",
-                     "P-value = 0.001",
-                     sep = "\n"),
-        sub = "30 Days",
-        ylab = "Percent of Patients with Score",
-        las = 1)
-
-tmp.table[1,] = modrankin.data[modrankin.data[,"Group"] == "SRP Participant Group" & 
-                                 modrankin.data[,"DaysId"] == 5, "Percent"]          
-
-tmp.table[2,] = modrankin.data[modrankin.data[,"Group"] == "Non-Participant Group" & 
-                                 modrankin.data[,"DaysId"] == 5, "Percent"]
-
-barplot(t(tmp.table)[6:1, 2:1],
-        density = c(7.5,20,10,15,7.5,10),
-        angle = c(30,60,90,150,120,0),
-        main = paste("",
-                     "",
-                     "P-value = 0.014",
-                     sep = "\n"),
-        sub = "90 Days",
-        axes = FALSE,
-        las = 1)
-
-tmp.table[1,] = modrankin.data[modrankin.data[,"Group"] == "SRP Participant Group" & 
-                                 modrankin.data[,"DaysId"] == 6, "Percent"]          
-
-tmp.table[2,] = modrankin.data[modrankin.data[,"Group"] == "Non-Participant Group" & 
-                                 modrankin.data[,"DaysId"] == 6, "Percent"]
-
-barplot(t(tmp.table)[6:1, 2:1],
-        density = c(7.5,20,10,15,7.5,10),
-        angle = c(30,60,90,150,120,0),
-        main = paste("",
-                     "",
-                     "P-value = 0.014",
-                     sep = "\n"),
-        sub = "120 Days",
-        axes = FALSE,
-        las = 1)
-
-text(line2user(line = 4, side=2),
-     line2user(line = 4, side = 3), "Modified Rankin Score by Follow Up Time and Rehabilitation Group", 
-     xpd = NA, cex = 2, font = 2)
-
-
-plot(1,
-     type = "n",
-     axes = FALSE,
-     xlab = "",
-     ylab = "")
-
-legend(x = "center",
-       inset = 0,
-       legend = c("0","1","2","3","4","5"), 
-       density = c(7.5,20,10,15,7.5,10)[6:1],
-       angle = c(30,60,90,150,120,0)[6:1],
-       horiz = FALSE,
-       cex = 3)
-
-dev.off()
-
-tiff("media/Modified Rankin Score/Mod Rankin Score Stacked Bar Graph (After Matching) (no color).tiff",
-     width = 8.25, 
-     height = 6, 
-     units = "in",
-     compression = "lzw",
-     res = 300)
+# modrankin.data[modrankin.data[, "Group"] == "Study Group", "Group"] = "SRP Participant Group"
+# 
+# modrankin.data[modrankin.data[, "Group"] == "Control Group", "Group"] = "Non-Participant Group"
+# 
+# # create a table for the number of patients in each category of modrankin score
+# tmp.table = matrix(NA, 2, 6)
+# 
+# colnames(tmp.table) = c("0", 
+#                         "1", 
+#                         "2", 
+#                         "3", 
+#                         "4", 
+#                         "5")
+# 
+# rownames(tmp.table) = c("SRP Group", 
+#                         "NP Group")
+# 
+# par(mfrow = c(1,4),
+#     mar = c(7,4,5.5,2) + 0.1)
+# 
+# # layout(matrix(c(1,2,3,4),
+# #               nrow = 2,
+# #               ncol = 4,
+# #               byrow = TRUE),
+# #        heights = c(0.4,0.4,0.2))
+# 
+# tmp.table[1,] = modrankin.data[modrankin.data[,"Group"] == "SRP Participant Group" & 
+#                                  modrankin.data[,"DaysId"] == 3, "Percent"]          
+# 
+# tmp.table[2,] = modrankin.data[modrankin.data[,"Group"] == "Non-Participant Group" & 
+#                                  modrankin.data[,"DaysId"] == 3, "Percent"]
+# 
+# barplot(t(tmp.table)[6:1, 2:1],
+#         density = c(7.5,20,10,15,7.5,10),
+#         angle = c(30,60,90,150,120,0),
+#         main = paste("",
+#                      "",
+#                      "P-value = 0.001",
+#                      sep = "\n"),
+#         sub = "30 Days",
+#         ylab = "Percent of Patients with Score",
+#         las = 1)
+# 
+# tmp.table[1,] = modrankin.data[modrankin.data[,"Group"] == "SRP Participant Group" & 
+#                                  modrankin.data[,"DaysId"] == 5, "Percent"]          
+# 
+# tmp.table[2,] = modrankin.data[modrankin.data[,"Group"] == "Non-Participant Group" & 
+#                                  modrankin.data[,"DaysId"] == 5, "Percent"]
+# 
+# barplot(t(tmp.table)[6:1, 2:1],
+#         density = c(7.5,20,10,15,7.5,10),
+#         angle = c(30,60,90,150,120,0),
+#         main = paste("",
+#                      "",
+#                      "P-value = 0.014",
+#                      sep = "\n"),
+#         sub = "90 Days",
+#         axes = FALSE,
+#         las = 1)
+# 
+# tmp.table[1,] = modrankin.data[modrankin.data[,"Group"] == "SRP Participant Group" & 
+#                                  modrankin.data[,"DaysId"] == 6, "Percent"]          
+# 
+# tmp.table[2,] = modrankin.data[modrankin.data[,"Group"] == "Non-Participant Group" & 
+#                                  modrankin.data[,"DaysId"] == 6, "Percent"]
+# 
+# barplot(t(tmp.table)[6:1, 2:1],
+#         density = c(7.5,20,10,15,7.5,10),
+#         angle = c(30,60,90,150,120,0),
+#         main = paste("",
+#                      "",
+#                      "P-value = 0.014",
+#                      sep = "\n"),
+#         sub = "120 Days",
+#         axes = FALSE,
+#         las = 1)
+# 
+# text(line2user(line = 4, side=2),
+#      line2user(line = 4, side = 3), "Modified Rankin Score by Follow Up Time and Rehabilitation Group", 
+#      xpd = NA, cex = 2, font = 2)
+# 
+# 
+# plot(1,
+#      type = "n",
+#      axes = FALSE,
+#      xlab = "",
+#      ylab = "")
+# 
+# legend(x = "center",
+#        inset = 0,
+#        legend = c("0","1","2","3","4","5"), 
+#        density = c(7.5,20,10,15,7.5,10)[6:1],
+#        angle = c(30,60,90,150,120,0)[6:1],
+#        horiz = FALSE,
+#        cex = 3)
+# 
+# dev.off()
+# 
+# tiff("media/Modified Rankin Score/Mod Rankin Score Stacked Bar Graph (After Matching) (no color).tiff",
+#      width = 8.25, 
+#      height = 6, 
+#      units = "in",
+#      compression = "lzw",
+#      res = 300)

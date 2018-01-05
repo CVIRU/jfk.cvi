@@ -2,14 +2,15 @@
 #Name: upload data                                                                 #
 #Author: Traymon Beavers                                                           #
 #Date Created: 7/21/2017                                                           #
-#Date Updated: 9/14/2017                                                           #
-#Purpose: To upload and reconfigure data from the stroke rehabilitation program    #
+#Date Updated: 10/9/2017                                                           #
+#Purpose: To upload and reconfigure data from the stroke rehabilitation program;   #
+#         5th round of data received                                               #
 ####################################################################################
 
 # Upload data ####
 
 # upload Data in R
-OldMaster = read.csv("data/DEID_All4.csv")
+OldMaster = read.csv("data/DEID_All5.csv")
 
 # delete extraneous varibale
 OldMaster = OldMaster[, -1]
@@ -148,6 +149,11 @@ NewMaster = NewMaster[order(NewMaster[, "ID"], NewMaster[, "DaysId"]), ]
 # delete patients that somehow landed in both groups
 NewMaster = NewMaster[-which(NewMaster[, "ID"] %in% intersect(StudyGroupIDs, ControlGroupIDs)), ]
 
+# delete the patients with NO CVG
+NOCVGIDs = unique(NewMaster[NewMaster[, "CVG.Participant_Descr"] == "NO CVG", "ID" ])
+
+NewMaster = NewMaster[!(NewMaster[, "ID"] %in% NOCVGIDs), ]
+
 # Create variables for days after assignment to group and important scores for each functional outcome ####
 
 # create a vector containing each ID in the dataset created above
@@ -203,6 +209,105 @@ for (i in 1:dim(NewMaster)[1]){
 # calculate the number of days after group assignement for each observation
 NewMaster[,"Days.After.Assignment"] =
   NewMaster[,"Days_afterOnset"] - NewMaster[,"Days.After.At.Assignment"]
+
+# Fill in the blanks for CVG score and remove certain patients from the dataset ####
+
+AllStudyIDs = NewMaster[NewMaster[,"Group"] == "Study Group" &
+                          NewMaster[,"DaysId"] == 3, "ID"]
+
+CVGIDs = NewMaster[NewMaster[,"CVG.Participant_Descr"] != "" &
+                     NewMaster[,"DaysId"] == 11, "ID"]
+
+Blank.CVGIDs = setdiff(AllStudyIDs,CVGIDs)
+
+CVG.Corrections = read.csv("data/CVG Corrections.csv")[1:19,]
+
+CVG.Corrections[12:13,] = CVG.Corrections[13:12,]
+
+CVG.Corrections[CVG.Corrections[,"Education.Level"] == 9999, "Education.Level"] = NA
+
+CVG.Corrections = droplevels(CVG.Corrections)
+
+colnames(CVG.Corrections)[7:14] = c("CVG.Participant_Descr",
+                                    "CVG.Freq",
+                                    "CVG.Total",
+                                    "CVG.Baseline",
+                                    "CVG.9.Met.Minutes",
+                                    "CVG.18.Met.Minutes",
+                                    "CVG.27.Met.Minutes",
+                                    "CVG.36.Met.Minutes")
+
+for.binding = droplevels(NewMaster[NewMaster[,"ID"] %in% Blank.CVGIDs &
+                                     NewMaster[,"DaysId"] == 3, ])
+
+for.binding = for.binding[order(for.binding[,"Gender"],
+                                for.binding[,"Age"]), ]
+
+Age.list = intersect(for.binding[, c("Age")],
+                     CVG.Corrections[, c("Age")])
+
+# View(for.binding[(for.binding[,"Age"] %in% Age.list),
+#                  c("Age",
+#                    "Gender",
+#                    "Hispanic.Ethnicity",
+#                    "Race",
+#                    "Health.Insurance.Name",
+#                    "Education.Level")])
+# 
+# View(CVG.Corrections[(CVG.Corrections[,"Age"] %in% Age.list),
+#                      c("Age",
+#                        "Gender",
+#                        "Hispanic.Ethnicity",
+#                        "Race",
+#                        "Health.Insurance.Name",
+#                        "Education.Level")])
+# 
+# for.binding[(for.binding[,"Age"] %in% Age.list),
+#                  c("Age",
+#                    "Gender",
+#                    "Hispanic.Ethnicity",
+#                    "Race",
+#                    "Health.Insurance.Name",
+#                    "Education.Level")] == CVG.Corrections[(CVG.Corrections[,"Age"] %in% Age.list),
+#                      c("Age",
+#                        "Gender",
+#                        "Hispanic.Ethnicity",
+#                        "Race",
+#                        "Health.Insurance.Name",
+#                        "Education.Level")]
+
+for.binding = for.binding[(for.binding[,"Age"] %in% Age.list), ]
+
+for.binding[, c("CVG.Participant_Descr",
+                "CVG.Freq",
+                "CVG.Total",
+                "CVG.Baseline",
+                "CVG.9.Met.Minutes",
+                "CVG.18.Met.Minutes",
+                "CVG.27.Met.Minutes",
+                "CVG.36.Met.Minutes")] = CVG.Corrections[(CVG.Corrections[,"Age"] %in% Age.list), 
+                                                         c("CVG.Participant_Descr",
+                                                           "CVG.Freq",
+                                                           "CVG.Total",
+                                                           "CVG.Baseline",
+                                                           "CVG.9.Met.Minutes",
+                                                           "CVG.18.Met.Minutes",
+                                                           "CVG.27.Met.Minutes",
+                                                           "CVG.36.Met.Minutes")]
+
+for.binding[, "DaysId"] = 11
+
+for.binding[, c(72:103)] = NA
+
+NewMaster = rbind.data.frame(NewMaster, for.binding)
+
+NewMaster = NewMaster[order(NewMaster[,"ID"], NewMaster[,"DaysId"]), ]
+
+Remove.IDs = unique(NewMaster[NewMaster[, "CVG.Participant_Descr"] == "NO CVG" |
+                                NewMaster[, "CVG.Participant_Descr"] == "OTHER", "ID"])
+
+NewMaster = NewMaster[NewMaster[,"ID"] != 555 & 
+                        !(NewMaster[,"ID"] %in% Remove.IDs), ]
 
 # Create a dataset with one observation for each patient ####
 NewMaster.One = NewMaster[NewMaster[,"DaysId"] == 3,]
@@ -318,6 +423,9 @@ NewMaster.One[NewMaster.One[, "Deceased_Dt"] == "9/9/9999", "Survival.Time"] = N
 
 # Create a variable for propensity score ####
 
+# create a vector containing each ID in the dataset created above
+NewMasterIDs = unique(NewMaster[,"ID"])
+
 # initialize the variable for every propensity score
 NewMaster.One[,"Propensity.Score"] = 0
 
@@ -336,19 +444,17 @@ fmla = as.formula(paste("Group ~ ", paste(Propensity.Variables, collapse="+")))
 fmla2 = as.formula(paste("Group ~ ", paste(Propensity.Variables2, collapse="+")))
 
 # calculate the propensity score for each patient
-glm.out = glm(formula = fmla, 
+glm.out = glm(formula = fmla,
               family = binomial(logit),
               data = NewMaster.One[,c("Group", Propensity.Variables)])
 
-summary(glm.out)
-
 NewMaster.One[,"Propensity.Score"] = glm.out$fitted.values
 
-NewMaster.One[NewMaster.One[, "Group"] == "Study Group", "Propensity.Weight"] = 
-  1/(1-NewMaster.One[NewMaster.One[, "Group"] == "Study Group", "Propensity.Score"]) 
+NewMaster.One[NewMaster.One[, "Group"] == "Study Group", "Propensity.Weight"] =
+  1/(1-NewMaster.One[NewMaster.One[, "Group"] == "Study Group", "Propensity.Score"])
 
-NewMaster.One[NewMaster.One[, "Group"] == "Control Group", "Propensity.Weight"] = 
-  1/NewMaster.One[NewMaster.One[, "Group"] == "Control Group", "Propensity.Score"] 
+NewMaster.One[NewMaster.One[, "Group"] == "Control Group", "Propensity.Weight"] =
+  1/NewMaster.One[NewMaster.One[, "Group"] == "Control Group", "Propensity.Score"]
 
 NewMaster.One[,"Sample.Weight"] = NewMaster.One[,"Propensity.Weight"]/sum(NewMaster.One[,"Propensity.Weight"])
 
@@ -358,7 +464,7 @@ C=1
 # cycle through every observation in the dataset
 for (i in 1:dim(NewMaster)[1]){
   
-  # if the ID for the current observation isn't equal to the ID for the previous ID, 
+  # if the ID for the current observation isn't equal to the ID for the previous ID,
   # increase the counter by one to move to the next ID
   if (NewMaster[i,"ID"] != NewMasterIDs[C] & C != (length(NewMasterIDs))){
     
@@ -377,5 +483,3 @@ for (i in 1:dim(NewMaster)[1]){
 # create datasets with one observation for each group
 NewMaster.One.Study = NewMaster.One[NewMaster.One[, "Group"] == "Study Group", ]
 NewMaster.One.Control = NewMaster.One[NewMaster.One[, "Group"] == "Control Group", ]
-
-

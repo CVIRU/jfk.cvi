@@ -3,33 +3,79 @@
 #Author: Traymon Beavers                                                           #
 #Depends: upload data.R, interpolate.R, matching.R, final matching.R               #
 #Date Created: 7/21/2017                                                           #
-#Date Updated: 9/13/2017                                                           #
+#Date Updated: 9/26/2017                                                           #
 #Purpose: To find, create, and extract the set of matches which contains the most  #
 #         patients, the least missing data, and the most deceased patient          #
 ####################################################################################
 
-# Notes about specific sets of one to one matches #############
-# (5, 25, 25, 25, 1, 2) yields 62 out of 88 study ID matches  #
-# 49 unique controls out of an original 128                   #
-# 726 nonmissing obs with seed 966                            #
-# maximum is 49 and 728                                       # 
-#                                                             #
-# (10, 25, 25, 25, 1, 2) yields 71 out of 88 study ID matches #
-# 49 unique controls out of an original 164                   #
-# 805 nonmissing obs                                          #
-# 4 deceased patients with seed 963                           #
-# maximum is 49 and 805                                       #
-#                                                             #
-# (8, 25, 25, 25, 1, 2) yields 67 out of 88 study ID matches  #
-# with seed 370:                                              #
-# 49 unique controls out of an original 154                   #
-# 769 nonmissing obs                                          #
-# 6 deceased patients                                         #
-# maximum is 49, 770, and 9                                   #
-###############################################################
+# Notes about specific sets of one to one matches ##############
+# for 4th round of data                                        #
+# (5, 25, 25, 25, 1, 2) yields 62 out of 88 study ID matches   #
+# 49 unique controls out of an original 128                    #
+# 726 nonmissing obs with seed 966                             #
+# maximum is 49 and 728                                        # 
+################################################################
+# (10, 25, 25, 25, 1, 2) yields 71 out of 88 study ID matches  #
+# 49 unique controls out of an original 164                    #
+# 805 nonmissing obs                                           #
+# 4 deceased patients with seed 963                            #
+# maximum is 49 and 805                                        #
+################################################################
+# (8, 25, 25, 25, 1, 2) yields 67 out of 88 study ID matches   #
+# with seed 370:                                               #
+# 49 unique controls out of an original 154                    #
+# 769 nonmissing obs                                           #
+# 6 deceased patients                                          #
+# maximum is 49, 770, and 9                                    #
+################################################################
+# for 5th round of data                                        #
+# (10, 25, 25, 25, 1, 2) yields 98 out of 118 study ID matches #
+# with seed 867:                                               #
+# 62 unique controls out of an original 228                    #
+# 1030 nonmissing obs                                          #
+# 9 deceased patients out of an original 31                    #
+# maximum is 64, 1071, and 9                                   #
+################################################################
+# (9, 23, 23, 23, 1, 2) yields 92 out of 118 study ID matches  #
+# with seed 630:                                               #
+# 64 unique controls out of an original 210                    #
+# 1022 nonmissing obs                                          #
+# 8 deceased patients out of an original 28                    #
+# maximum is 64, 1027, and 10                                  #
+################################################################
+# (9, 22, 22, 22, 1, 2) yields 89 out of 118 study ID matches  #
+# with seed 234:                                               #
+# 64 unique controls out of an original 208                    #
+# 1022 nonmissing obs                                          #
+# 8 deceased patients out of an original 28                    #
+# maximum is 64, 993, and 11                                   #
+# SWEET SPOT                                                   #
+################################################################
+# for 5th round of data (ONLY PARTIAL AND FULL CVG)            #
+# (10, 25, 25, 25, 1, 2) yields 86 out of 105 study ID matches #
+# with seed 683:                                               #
+# 60 unique controls out of an original 214                    #
+# 956 nonmissing obs                                           #
+# 8 deceased patients out of an original 27                    #
+# maximum is 61, 986, and 8                                    #
+################################################################
+# (9, 24, 24, 24, 1, 2) yields 84 out of 105 study ID matches  #
+# with seed 965:                                               #
+# 62 unique controls out of an original 206                    #
+# 965 nonmissing obs                                           #
+# 10 deceased patients out of an original 25                   #
+# maximum is 62, 970, and 10                                   #
+################################################################
+# (9, 23, 23, 23, 1, 2) yields 84 out of 105 study ID matches  #
+# with seed 965:                                               #
+# 61 unique controls out of an original 200                    #
+# 949 nonmissing obs                                           #
+# 8 deceased patients out of an original 25                    #
+# maximum is 61, 953, and 9                                    #
+# SWEET SPOT                                                   #
+################################################################
 
 # Load the necessary source code and functions ####
-source("source/Traymon's Source Code/Data Reconfiguration/upload data.R")
 source("source/Traymon's Source Code/Data Reconfiguration/interpolate.R")
 source("source/Traymon's Source Code/Functions/Matching Functions/matching.R")
 source("source/Traymon's Source Code/Functions/Matching Functions/final matching.R")
@@ -37,10 +83,10 @@ source("source/Traymon's Source Code/Functions/Matching Functions/final matching
 # Optimize set of matches ####
 
 # create matches
-matchrows = matching(AgeNum = 8,
-                     DischargeMobNum = 25,
-                     DischargeActNum = 25,
-                     DischargeCogNum = 25,
+matchrows = matching(AgeNum = 9,
+                     DischargeMobNum = 23,
+                     DischargeActNum = 23,
+                     DischargeCogNum = 23,
                      PScoreNum = 1,
                      FacAdjNum = 2)
 
@@ -51,6 +97,9 @@ length(unique(matchrows[matchrows[, "Group"] == 0, "ID"]))
 # count the number of deceased patients in the subset of matched patients
 sum(NewMaster.One[NewMaster.One[,"ID"] %in% unique(matchrows[matchrows[, "Group"] == 0, "ID"]), "Deceased_Y.N"])
 
+# control.thresh = 60
+# death.thresh = 7
+# 
 # # Find the seed that optimizes the set of one to one matches ####
 # 
 # # initialize vector to hold the number of non-missing observations this collection of matches has
@@ -121,8 +170,8 @@ sum(NewMaster.One[NewMaster.One[,"ID"] %in% unique(matchrows[matchrows[, "Group"
 #   DC.Num = c(DC.Num, sum(NewMaster.One[NewMaster.One[,"ID"] %in% matchrow.final[, "ID"], "Deceased_Y.N"]))
 # 
 #   # print seeds that have number of non missing observations and unique controls above a desired threshold
-#   if (length(unique(matchrow.final[matchrow.final[, "Group"] == 0, "ID"])) > 47 &
-#       sum(NewMaster.One[NewMaster.One[,"ID"] %in% matchrow.final[, "ID"], "Deceased_Y.N"]) > 5){
+#   if (length(unique(matchrow.final[matchrow.final[, "Group"] == 0, "ID"])) > control.thresh &
+#       sum(NewMaster.One[NewMaster.One[,"ID"] %in% matchrow.final[, "ID"], "Deceased_Y.N"]) > death.thresh){
 # 
 #     print(k)
 #     print(c(length(unique(matchrow.final[matchrow.final[, 3] == 0, "ID"])),
@@ -143,11 +192,10 @@ sum(NewMaster.One[NewMaster.One[,"ID"] %in% unique(matchrows[matchrows[, "Group"
 
 # create the matches
 matchrow.final = final.matching(Matchrows = matchrows,
-                                Match.seed = 370)
+                                Match.seed = 965)
 
 # extract the data
 match.subgroup = Interpolate.Master[Interpolate.Master[,"ID"] %in% matchrow.final[, "ID"], ]
 match.subgroup.One = NewMaster.One[NewMaster.One[,"ID"] %in% matchrow.final[, "ID"], ]
 match.subgroup.One.Study = match.subgroup.One[match.subgroup.One[, "Group"] == "Study Group", ]
 match.subgroup.One.Control = match.subgroup.One[match.subgroup.One[, "Group"] == "Control Group", ]
-

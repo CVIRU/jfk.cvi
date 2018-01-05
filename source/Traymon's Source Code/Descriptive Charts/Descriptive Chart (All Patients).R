@@ -3,7 +3,7 @@
 #Author: Traymon Beavers                                                           #
 #Depends: interpolate.R                                                            #
 #Date Created: 7/21/2017                                                           #
-#Date Updated: 9/15/2017                                                           #
+#Date Updated: 10/3/2017                                                           #
 #Purpose: To create and save a descriptive chart comparing the study group and     #
 #         control group patients; entire sample                                    #
 ####################################################################################
@@ -145,16 +145,28 @@ for (i in cont.list[c(15:21)]){
 for (i in bin.list){
   
   # skip over these two variables since no patients had these conditions
-  if (i != "Hormone.Replacement.Therapy" &i != "Sickle.Cell.Anemia" &i != "Current.pregnancy"){
+  if (i != "Hormone.Replacement.Therapy" & 
+      i != "Sickle.Cell.Anemia" & 
+      i != "Current.pregnancy"){
     
-    # construct a 2 by 2 table for the current variable
-    tmp.table = table(NewMaster.One[c("Group", i)])[c(1,2),c(2,1)]
+    tmp.table = table(NewMaster.One[, c("Group", i)])[c(1,2), c(2,1)]
+    
+    if (is.null(levels(NewMaster.One[, i])) == 0){
+      
+      if( c("") %in% levels(NewMaster.One[, i]) |
+          c("9999") %in% levels(NewMaster.One[, i])){ 
+      
+      tmp.table = table(NewMaster.One[, c("Group", i)])[c(1,2), c(3,2)]
+      
+      }
+      
+    }
     
     # delete the "Other" option from the table
     if (i == "Hispanic.Ethnicity"){
       
       # construct a 2 by 2 table for the current variable
-      tmp.table = table(NewMaster.One[c("Group", i)])[c(2,1),c(3,1)]  
+      tmp.table = table(NewMaster.One[, c("Group", i)])[c(2,1), c(3,1)]  
       
     }
     
@@ -184,7 +196,6 @@ for (i in bin.list){
   }
   
 }
-
 
 # Fill in the chart for categorical variables ####
 # For race ####
@@ -225,7 +236,7 @@ entire.demo.chart = entire.demo.chart[c(1:6, 67:69, 7:66), ]
 
 # create a table for the number of patients in each category of health insurance
 tmp.table = table(NewMaster.One[, c("Group", "Health.Insurance.Name")])[, 1:3] +
-  cbind(c(0,0), c(0,0), table(NewMaster.One[, c("Group", "Health.Insurance.Name")])[, 4])
+  cbind(table(NewMaster.One[, c("Group", "Health.Insurance.Name")])[, 4], c(0,0), c(0,0))
 
 # conduct a chi square test for health insurance
 tmp = chisq.test(tmp.table)
@@ -258,7 +269,9 @@ entire.demo.chart = entire.demo.chart[c(1:10, 70:72, 11:69), ]
 # For type of stroke ####
 
 # create a table for the number of patients in each category of type of stroke
-tmp.table = table(NewMaster.One[, c("Group", "Type.of.Stroke")])
+tmp.table = table(NewMaster.One[, c("Group", "Type.of.Stroke")])[, c("HEMORRHAGIC - INTRACEREBRAL/INTRACEREBELLAR/INTRAP",
+                                                                     "ISCHEMIC CVA",
+                                                                     "SUBARACHNOID HEMORRHAGE")]
 
 # conduct a chi square test for type of stroke
 tmp = chisq.test(tmp.table)

@@ -3,7 +3,7 @@
 #Author: Traymon Beavers                                                           #
 #Depends: matching.R, final matching.R, lmerTest                                   #
 #Date Created: 4/15/2017                                                           #
-#Date Updated: 9/14/2017                                                           #
+#Date Updated: 9/25/2017                                                           #
 #Purpose: To match the data based on gender, race, type of stroke, age, baseline   #
 #         functional outcome scores, propensity score, and facility adjustor       #
 #         number and then fit a mixed linear model with matched pair ID, patient   # 
@@ -32,15 +32,15 @@ source("source/Traymon's Source Code/Functions/Matching Functions/final matching
 library(lmerTest)
 
 # Create function ####
-lmer.analysis = function(AgeNum = 8, 
-                         DischargeMobNum = 25, 
-                         DischargeActNum = 25, 
-                         DischargeCogNum = 25,
+lmer.analysis = function(AgeNum = 9, 
+                         DischargeMobNum = 23, 
+                         DischargeActNum = 23, 
+                         DischargeCogNum = 23,
                          PScoreNum = 1,
                          FacAdjNum = 2,
                          ScoreNum = 1, 
                          Choice = 1,
-                         Match.seed = 370){
+                         Match.seed = 965){
   
   # create matches
   matchrows = matching(AgeNum = AgeNum , 
@@ -99,7 +99,7 @@ lmer.analysis = function(AgeNum = 8,
   
   fmla1 = as.formula(paste("Score.Diff.from.Discharge ~ ", 
                            paste(c("Group", 
-                                   "(ID | PairID)  + (1 | Follow.Up.After.Assignment)"), 
+                                   "(ID | PairID)"), 
                                  collapse="+")))
   
   fmla2 = as.formula(paste("Score.Diff.from.Discharge ~ ", 
@@ -117,7 +117,7 @@ lmer.analysis = function(AgeNum = 8,
   
   fmla4 = as.formula(paste("Score.Diff.from.Discharge ~ ", 
                            paste(c(Analysis.Variables[c(2:6,8,9)], 
-                                   "(ID | PairID) + (1 | Follow.Up.After.Assignment)"), 
+                                   "(ID | PairID)"), 
                                  collapse="+")))
   
   

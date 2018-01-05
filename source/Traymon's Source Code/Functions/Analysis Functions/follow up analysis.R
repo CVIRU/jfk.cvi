@@ -3,7 +3,7 @@
 #Author: Traymon Beavers                                                           #
 #Depends: matching.R, final matching.R                                             #
 #Date Created: 4/15/2017                                                           #
-#Date Updated: 9/15/2017                                                           #
+#Date Updated: 9/25/2017                                                           #
 #Purpose: To match the data based on gender, race, type of stroke, age, baseline   #
 #         functional outcome scores, propensity score, and facility adjustor number#
 #         and then perform a paired t-test with each match acting as a pair        #
@@ -25,15 +25,16 @@ source("source/Traymon's Source Code/Functions/Matching Functions/matching.R")
 source("source/Traymon's Source Code/Functions/Matching Functions/final matching.R")
 
 # Create function ####
-follow.up.analysis = function(AgeNum = 8, 
-                              DischargeMobNum = 25, 
-                              DischargeActNum = 25, 
-                              DischargeCogNum = 25,
+
+follow.up.analysis = function(AgeNum = 9, 
+                              DischargeMobNum = 23, 
+                              DischargeActNum = 23, 
+                              DischargeCogNum = 23,
                               PScoreNum = 1,
                               FacAdjNum = 2,
                               ScoreNum = 1, 
                               FollowUpNum = 4,
-                              Match.seed = 370){
+                              Match.seed = 965){
   
   # create the matched pairs
   matchrows = matching(AgeNum = AgeNum, 

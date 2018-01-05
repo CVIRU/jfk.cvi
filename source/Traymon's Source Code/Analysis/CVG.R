@@ -3,13 +3,13 @@
 #Author: Traymon Beavers                                                           #
 #Depends: upload data.R, ggplot2, lmerTest                                         #
 #Date Created: 7/21/2017                                                           #
-#Date Updated: 9/20/2017                                                           #
+#Date Updated: 9/27/2017                                                           #
 #Purpose: To perform analysis on the stroke rehabilitation program cardiovascular  #
 #         group data, as well as provide a collection of plots                     #
 ####################################################################################
 
 # Load the necessary source code and packages ####
-source("source/Traymon's Source Code/Data Reconfiguration/upload data.R")
+source("source/Traymon's Source Code/Data Reconfiguration/check data.R")
 library(ggplot2)
 library(lmerTest)
 
@@ -85,19 +85,17 @@ summary(word)
 
 # Perform a one sided one sample test ####
 
-t.test(CVG.data.long.2[CVG.data.long.2[, "Follow.Up"] == "9 Weeks", "Diff.from.Baseline"],
+t.test(CVG.data.long.2[CVG.data.long.2[, "Follow.Up"] == "9 Sessions", "Diff.from.Baseline"],
        alternative = "greater")
 
-t.test(CVG.data.long.2[CVG.data.long.2[, "Follow.Up"] == "18 Weeks", "Diff.from.Baseline"],
+t.test(CVG.data.long.2[CVG.data.long.2[, "Follow.Up"] == "18 Sessions", "Diff.from.Baseline"],
        alternative = "greater")
 
-t.test(CVG.data.long.2[CVG.data.long.2[, "Follow.Up"] == "27 Weeks", "Diff.from.Baseline"],
+t.test(CVG.data.long.2[CVG.data.long.2[, "Follow.Up"] == "27 Sessions", "Diff.from.Baseline"],
        alternative = "greater")
 
-t.test(CVG.data.long.2[CVG.data.long.2[, "Follow.Up"] == "36 Weeks", "Diff.from.Baseline"],
+t.test(CVG.data.long.2[CVG.data.long.2[, "Follow.Up"] == "36 Sessions", "Diff.from.Baseline"],
        alternative = "greater")
-
-
 
 # Create bar graphs ####
 # Create dataset ####
@@ -118,11 +116,30 @@ tmp = as.data.frame(t(tmp))
 colnames(tmp) = c("Average.METS-Min",
                   "Average.Percent.Improvement.from.Baseline")
 
-tmp[, "Number.of.Sessions"] = rownames(tmp)
+tmp[, "Number.of.Sessions"] = factor(rownames(tmp),
+                                     levels = rownames(tmp))
+
+tmp[, "Group"] = "Filler"
 
 rownames(tmp) = 1:dim(tmp)[1]
 
-write.csv(tmp,
+tmp2 = as.data.frame(matrix(NA, nrow = 10, ncol = 3))
+
+colnames(tmp2) = c("METS-Min", 
+                   "Number.of.Sessions", 
+                   "Type")
+
+tmp2[,1] = c(tmp[1:5,1],tmp[1:5,2])
+
+tmp2[,2] = rep(tmp[,3],2)
+
+tmp2[,3] = rep(c("MET-min","Average Percent Improvement from Baseline"),
+                 each = 5)
+
+tmp2[,3] = factor(tmp2[,3],
+                  levels = c("MET-min","Average Percent Improvement from Baseline"))
+
+write.csv(tmp2,
           "media/CVG/Data Tables/CVGMetsMin.csv",
           row.names = FALSE)
 
@@ -210,15 +227,15 @@ ggplot(data = tmp,
        aes(x = Number.of.Sessions,
            y = `Average.METS-Min`)) +
   scale_x_discrete("Number of Sessions") +
-  scale_y_continuous("METs-Min") +
-  ggtitle("Average METs-Min by Number of Sessions") +
+  scale_y_continuous("METs-min") +
+  ggtitle("Average METs-min by Number of Sessions") +
   geom_bar(stat = "identity", 
            position = "identity",
            fill = "black") +
   geom_text(aes(label = round(tmp[, "Average.METS-Min"],0),
                 vjust = -0.3,
                 size = 5)) +
-  geom_text(aes(label = c("", rep("P-value < 0.0001",4)),
+  geom_text(aes(label = c("", rep("P-value < 0.001",4)),
                 x = 1:5,
                 y = rep(5,5),
                 size = 5),
@@ -240,8 +257,8 @@ ggplot(data = tmp,
        aes(x = Number.of.Sessions,
            y = Average.Percent.Improvement.from.Baseline)) +
   scale_x_discrete("Number of Sessions") +
-  scale_y_continuous("METs-Min") +
-  ggtitle("Average METs-Min by Number of Sessions",
+  scale_y_continuous("METs-min") +
+  ggtitle("Average METs-min by Number of Sessions",
           subtitle = "Percent Improvement from Baseline") +
   geom_bar(stat = "identity", 
            position = "identity",
@@ -251,6 +268,10 @@ ggplot(data = tmp,
                               sep = ""),
                 vjust = -0.3,
                 size = 5)) +
+  geom_text(x = 1.5,
+            y = 105,
+            label = "P-Value < 0.001",
+            size = 5) +
   theme(plot.title = element_text(hjust = 0.5), 
         plot.subtitle = element_text(hjust = 0.5),
         legend.position = "none")
@@ -262,3 +283,70 @@ ggsave("media/CVG/Percent Bar Graph (no color).tiff",
        dpi = 300,
        compression = "lzw")
 
+
+# Side by side bar graph (no color) ####
+
+ggplot(data = tmp2, 
+       aes(x = Number.of.Sessions,
+           y = `METS-Min`)) +
+  facet_wrap(~Type, nrow = 1) +
+  scale_x_discrete("Number of Sessions") +
+  scale_y_continuous("MET-min") +
+  ggtitle("MET-min") +
+  geom_bar(stat = "identity", 
+           position = "identity",
+           fill = "black") +
+  geom_text(aes(label = c(round(tmp2[1:5, "METS-Min"],0)
+                          ,paste(round(tmp2[6:10, "METS-Min"],0),
+                              "%",
+                              sep = "")),
+                vjust = -0.3,
+                size = 5)) +
+  geom_text(aes(label = rep(c("", rep("P < 0.001",4)),2),
+                x = c(1:5,1:5),
+                y = rep(5,10)),
+                size = 4,
+            color = "white") +
+  theme(plot.title = element_text(hjust = 0.5), 
+        plot.subtitle = element_text(hjust = 0.5),
+        legend.position = "none")
+
+ggsave("media/CVG/Side by Side Bar Graph (no color).tiff",
+       device = "tiff",
+       width = 10,
+       height = 5, 
+       dpi = 300,
+       compression = "lzw")
+
+
+# Average line graph ####
+
+# create line plot
+ggplot(data = tmp,
+       aes(x = Number.of.Sessions,
+           y = `Average.METS-Min`,
+           group = Group)) +
+  geom_text(aes(x = 1.5,
+                y = 95,
+                label = "P < 0.001"),
+            inherit.aes = FALSE,
+            size = 5) +
+  geom_text(aes(label = round(tmp[, "Average.METS-Min"],0),
+                vjust = -0.75),
+                size = 5) +
+  ggtitle("MET-min") +
+  geom_line(stat = "identity",
+            position = "identity") +
+  geom_point(size = 3) +
+  scale_x_discrete("Number of Sessions") +
+  scale_y_continuous("MET-min",
+                     limits = c(40,110)) +
+  theme(plot.title = element_text(hjust = 0.5))        
+
+# save the plot
+ggsave("media/CVG/Average Line Graph (no color).tiff",
+       device = "tiff",
+       width = 10,
+       height = 5,
+       dpi = 300,
+       compression = "lzw")

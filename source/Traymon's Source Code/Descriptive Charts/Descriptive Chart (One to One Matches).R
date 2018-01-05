@@ -3,7 +3,7 @@
 #Author: Traymon Beavers                                                           #
 #Depends: create matches.R                                                         #
 #Date Created: 7/21/2017                                                           #
-#Date Updated: 9/15/2017                                                           #
+#Date Updated: 10/3/2017                                                           #
 #Purpose: To create and save a descriptive chart comparing the study group and     #
 #         control group patients; sample of one to one matches                     #
 ####################################################################################
@@ -148,11 +148,21 @@ for (i in bin.list){
   if (i != "Hormone.Replacement.Therapy" & 
       i != "Sickle.Cell.Anemia" & 
       i != "Current.pregnancy" &
-      i != "Hemiparesis_Bilateral" &
-      i != "Spasticity"){
+      i != "Past.Med.Diag_None"){
     
     # construct a 2 by 2 table for the current variable
     tmp.table = table(match.subgroup.One[c("Group", i)])[c(1,2),c(2,1)]
+    
+    if (is.null(levels(match.subgroup.One[, i])) == 0){
+      
+      if( c("") %in% levels(match.subgroup.One[, i]) |
+          c("9999") %in% levels(match.subgroup.One[, i])){ 
+        
+        tmp.table = table(match.subgroup.One[c("Group", i)])[c(1,2), c(3,2)]
+        
+      }
+      
+    }
     
     # delete the "Other" option from the table
     if (i == "Hispanic.Ethnicity"){
@@ -160,6 +170,13 @@ for (i in bin.list){
       # construct a 2 by 2 table for the current variable
       tmp.table = table(match.subgroup.One[c("Group", i)])[c(2,1),c(3,1)]  
       
+    }
+    
+    if (i == "Balance.Ataxia" | 
+        i == "Dysphagia"){
+     
+      tmp.table = table(match.subgroup.One[c("Group", i)])[c(2,1),c(3,2)]
+       
     }
     
     # conduct a two sample test for proportions the current variable
@@ -188,7 +205,6 @@ for (i in bin.list){
   }
   
 }
-
 
 # Fill in the chart for categorical variables ####
 # For race ####
@@ -229,7 +245,7 @@ matched.demo.chart = matched.demo.chart[c(1:6, 67:69, 7:66), ]
 
 # create a table for the number of patients in each category of health insurance
 tmp.table = table(match.subgroup.One[, c("Group", "Health.Insurance.Name")])[, 1:3] +
-  cbind(c(0,0), c(0,0), table(match.subgroup.One[, c("Group", "Health.Insurance.Name")])[, 4])
+  cbind(table(match.subgroup.One[, c("Group", "Health.Insurance.Name")])[, 4], c(0,0), c(0,0))
 
 # conduct a chi square test for health insurance
 tmp = chisq.test(tmp.table)
@@ -262,7 +278,8 @@ matched.demo.chart = matched.demo.chart[c(1:10, 70:72, 11:69), ]
 # For type of stroke ####
 
 # create a table for the number of patients in each category of type of stroke
-tmp.table = table(match.subgroup.One[, c("Group", "Type.of.Stroke")])[, 1:2]
+tmp.table = table(match.subgroup.One[, c("Group", "Type.of.Stroke")])[, c("HEMORRHAGIC - INTRACEREBRAL/INTRACEREBELLAR/INTRAP",
+                                                                          "ISCHEMIC CVA")]
 
 # conduct a chi square test for type of stroke
 tmp = chisq.test(tmp.table)
@@ -439,11 +456,15 @@ matched.demo.chart.final["Gender", 2:3] = rep("", 2)
 # delete the Sickle Cell Anemia and Hormone Replacement Therapy variables
 matched.demo.chart.final = matched.demo.chart.final[-c(49,58), ] 
 
-# delete the non-NIHSS SSN's, Past.Med.Diag_None, and current pregnancy
+# delete the non-NIHSS SSN's, Past.Med.Diag_None, Hemiparesis_Bilateral, 
+# Spasticity, and current pregnancy
 matched.demo.chart.final = matched.demo.chart.final[-c(27,28,38,42),]
 
 # reorder Gender variables
 matched.demo.chart.final = matched.demo.chart.final[c(1:4,74:75,5:73), ]
+
+# # fix P-value for Dis-Fim Cogn
+# matched.demo.chart.final["ARHosp.JRI.Dis.FIM.Total", "P-Value"] = "0.030"
 
 # rename the rownames as numbers
 rownames(matched.demo.chart.final) = 1:dim(matched.demo.chart.final)[1]

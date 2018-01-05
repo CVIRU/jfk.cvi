@@ -9,7 +9,7 @@
 ####################################################################################
 
 # Load the necessary source code ####
-source("source/Traymon's Source Code/Data Reconfiguration/upload data.R")
+source("source/Traymon's Source Code/Data Reconfiguration/check data.R")
 
 # Perform interpolation ####
 
