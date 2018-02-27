@@ -2,10 +2,14 @@
 #Name: DEID and Combine (Round 6)                                                  #
 #Author: Traymon Beavers                                                           #
 #Date Created: 2/1/2018                                                            #
+#Date Updated: 2/27/2018                                                           #
 #Purpose: To deidentify the JFK data for use outside of the CVI and combine the    #
 #         three separate datasets into one, outputting these deidentified datasets #
 #         into new csv files; 6th round of data received                           #
 ####################################################################################
+
+# set the working directory to retreive the data
+setwd("D:/For RWJCVI - 2018Jan30_CatNo1-798plusDeceased")
 
 # upload data
 Demdata = read.csv("Demographics_01302018.csv")
@@ -13,28 +17,44 @@ Mesdata = read.csv("Measurement_01302018.csv")
 MedHisdata = read.csv("MedicalHist_01302018.csv")
 
 # look for missing patients and count them
-# setdiff(1:max(Demdata[,"Cat_No"]), Demdata[,"Cat_No"])
-# 
-# length(setdiff(1:max(Demdata[,"Cat_No"]), Demdata[,"Cat_No"]))
+range(Demdata[,"Cat_No"])
+setdiff(1:max(Demdata[,"Cat_No"]), Demdata[,"Cat_No"])
+length(setdiff(1:max(Demdata[,"Cat_No"]), Demdata[,"Cat_No"]))
+# As of 2/27/2018 there are 153 unused Cat_No from 1 to 928
+
 
 # look for duplicate Cat_No, check that they're different patients, and count them
-# View(Demdata[Demdata[,"Cat_No"] %in% Demdata[which(duplicated(Demdata[,"Cat_No"])), "Cat_No"],
-#              c("Cat_No", "First.Name", "Last.Name")])
-# 
-# dim(Demdata[Demdata[,"Cat_No"] %in% Demdata[which(duplicated(Demdata[,"Cat_No"])), "Cat_No"],
-#              c("Cat_No", "First.Name", "Last.Name")])[1]
+View(Demdata[Demdata[,"Cat_No"] %in% Demdata[which(duplicated(Demdata[,"Cat_No"])), "Cat_No"],
+             c("Cat_No", "First.Name", "Last.Name")])
+
+dim(Demdata[Demdata[,"Cat_No"] %in% Demdata[which(duplicated(Demdata[,"Cat_No"])), "Cat_No"],
+             c("Cat_No", "First.Name", "Last.Name")])[1]
+# As of 2/27/2018 there are 8 duplicated Cat_No but all are different patients
 
 # Check if patients are in some datasets but missing in others
-# length(Demdata$Cat_No)
-# length(MedHisdata$Cat_No)
-# length(unique(Mesdata$Medical.Record.No))
-# setdiff(Demdata$Cat_No, MedHisdata$Cat_No)
-# setdiff(unique(Mesdata$Medical.Record.No), Demdata$Medical.Record.No)
+length(Demdata$Cat_No)
+length(MedHisdata$Cat_No)
+length(unique(Mesdata$Medical.Record.No))
+setdiff(Demdata$Cat_No, MedHisdata$Cat_No)
+setdiff(unique(Mesdata$Medical.Record.No), Demdata$Medical.Record.No)
+# As of 2/27/2018 all datasets have the same Cat_No
 
 # de-Identify Data Except for Medical Record Number
-New.Demdata = Demdata[, c(-1:-4, -6:-10, -15:-17, -19, -26:-43)]
-New.Mesdata = Mesdata[, c(-1, -3:-9, -51:-54)]
-New.MedHisdata = MedHisdata[, c(-1, -3:-8, -64:-68)]
+Demdata.delete = -c(1:4,6:10,15:17,19,26:43)
+colnames(Demdata)[Demdata.delete]
+colnames(Demdata)[-Demdata.delete]
+
+Mesdata.delete = -c(1,3:5,51:54)
+colnames(Mesdata)[Mesdata.delete]
+colnames(Mesdata)[-Mesdata.delete]
+
+MedHisdata.delete = -c(1,3:8,64:68)
+colnames(MedHisdata)[MedHisdata.delete]
+colnames(MedHisdata)[-MedHisdata.delete]
+
+New.Demdata = Demdata[, Demdata.delete]
+New.Mesdata = Mesdata[, Mesdata.delete]
+New.MedHisdata = MedHisdata[, MedHisdata.delete]
 
 # sort by Medical Record Number
 Sort.Demdata = New.Demdata[order(New.Demdata$Medical.Record.No), ]
@@ -85,7 +105,7 @@ DEID.MedHisdata = Order.MedHisdata[, -2]
 # Combine the three datasets into a master dataset ####
 
 # combine Demographics and Medical History
-Semi.DEID.Master = cbind(DEID.Demdata, DEID.MedHisdata)
+Semi.DEID.Master = cbind.data.frame(DEID.Demdata, DEID.MedHisdata)
 
 # delete extra ID variable
 Semi.DEID.Master = Semi.DEID.Master[, -(dim(DEID.Demdata)[2]+1)]
@@ -112,17 +132,17 @@ for (i in 2:dim(DEID.Mesdata)[1]){
 # delete extra ID variable
 DEID.Master = DEID.Master[, -(dim(Semi.DEID.Master)[2]+1)]
 
+# check that all variables used for identification are not in the deidentified dataset
+colnames(DEID.Master)
+
 #write the dataframes to csv files
 write.csv(DEID.Master, "DEID_All6.csv")
 write.csv(DEID.Demdata, "DEID_Demographics6.csv")
 write.csv(DEID.MedHisdata, "DEID_Medical_History6.csv")
 write.csv(DEID.Mesdata, "DEID_Measurements6.csv")
 
-# check that all variables used for identification are not in the deidentified dataset
-colnames(DEID.Master)
-
 # For data clean up ####
 
 # figure out Cat_No for data clean up
-Demdata[Demdata[,"Medical.Record.No"]==Link[Link[,1]==214,2],"Cat_No"]
+Demdata[Demdata[, "Medical.Record.No"] == Link[Link[,1] == 214, 2], "Cat_No"]
 
