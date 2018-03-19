@@ -2,7 +2,7 @@
 #Name: final.matching                                                              #
 #Author: Traymon Beavers                                                           #
 #Date Created: 7/4/2017                                                            #
-#Date Updated: 7/23/2017                                                           #
+#Date Updated: 3/7/2018                                                            #
 #Purpose: To create one to one matches after the data is already matched using the #
 #         matching function; unique up to study patient                            #
 #Variables: Matchrows-matched pairs created using matching                         #
@@ -86,10 +86,10 @@ final.matching = function(Matchrows = matchrows,
 # 
 # # cycle through pair IDs
 # for (i in matchrow.final[, "PairID"]){
-#   
-#   # print the matches and the characteristics they are supposed to be matched on  
-#   print(NewMaster.One[NewMaster.One[, "ID"] %in% matchrow.final[which(matchrow.final[, "PairID"] == i), "ID"], 
-#                       c("ID", 
+# 
+#   # print the matches and the characteristics they are supposed to be matched on
+#   print(Interpolate.Master.One[Interpolate.Master.One[, "ID"] %in% matchrow.final[which(matchrow.final[, "PairID"] == i), "ID"],
+#                       c("ID",
 #                         "Group",
 #                         "Age",
 #                         "Gender",
@@ -99,5 +99,5 @@ final.matching = function(Matchrows = matchrows,
 #                         "Admission.Cognitive",
 #                         "Type.of.Stroke",
 #                         "ARHosp.JRI.Facility.Adjustor")])
-#   
+# 
 # }

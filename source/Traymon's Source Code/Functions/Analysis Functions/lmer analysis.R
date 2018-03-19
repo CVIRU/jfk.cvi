@@ -3,7 +3,7 @@
 #Author: Traymon Beavers                                                           #
 #Depends: matching.R, final matching.R, lmerTest                                   #
 #Date Created: 4/15/2017                                                           #
-#Date Updated: 9/25/2017                                                           #
+#Date Updated: 3/9/2018                                                            #
 #Purpose: To match the data based on gender, race, type of stroke, age, baseline   #
 #         functional outcome scores, propensity score, and facility adjustor       #
 #         number and then fit a mixed linear model with matched pair ID, patient   # 
@@ -32,15 +32,15 @@ source("source/Traymon's Source Code/Functions/Matching Functions/final matching
 library(lmerTest)
 
 # Create function ####
-lmer.analysis = function(AgeNum = 9, 
-                         DischargeMobNum = 23, 
-                         DischargeActNum = 23, 
-                         DischargeCogNum = 23,
+lmer.analysis = function(AgeNum = 5, 
+                         DischargeMobNum = 15, 
+                         DischargeActNum = 15, 
+                         DischargeCogNum = 15,
                          PScoreNum = 1,
                          FacAdjNum = 2,
                          ScoreNum = 1, 
                          Choice = 1,
-                         Match.seed = 965){
+                         Match.seed = 946){
   
   # create matches
   matchrows = matching(AgeNum = AgeNum , 

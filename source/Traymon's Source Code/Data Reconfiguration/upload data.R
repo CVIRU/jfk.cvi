@@ -2,15 +2,15 @@
 #Name: upload data                                                                 #
 #Author: Traymon Beavers                                                           #
 #Date Created: 7/21/2017                                                           #
-#Date Updated: 10/9/2017                                                           #
+#Date Updated: 3/7/2018                                                            #
 #Purpose: To upload and reconfigure data from the stroke rehabilitation program;   #
-#         5th round of data received                                               #
+#         6th round of data received                                               #
 ####################################################################################
 
 # Upload data ####
 
 # upload Data in R
-OldMaster = read.csv("data/DEID_All5.csv")
+OldMaster = read.csv("data/DEID_All6.csv")
 
 # delete extraneous varibale
 OldMaster = OldMaster[, -1]
@@ -18,15 +18,24 @@ OldMaster = OldMaster[, -1]
 # delete the patients that were pregnant at the time of the study
 OldMaster = OldMaster[OldMaster[, "Current.pregnancy"] == FALSE, ]
 
+# change all unknown hispanic ethnicity values to No
+OldMaster[OldMaster[, "Hispanic.Ethnicity"] == "Unknown", "Hispanic.Ethnicity"] = "No"
+OldMaster = droplevels(OldMaster)
+
 # rename dataset
 Master = OldMaster
 
 # Rename races other than black or white as "Other" ####
-Master[Master[,"Race"] == "BLACK OR AFRICAN AMERICAN", "New.Race"] = "Black"
 
-Master[Master[,"Race"] == "WHITE", "New.Race"] = "White"
+# rename Description variable as Race
+colnames(Master)[10] = "Race"
 
-Master[Master[,"Race"] != "BLACK OR AFRICAN AMERICAN" & Master[,"Race"] != "WHITE", "New.Race"] = "Other"
+Master[Master[, "Race"] == "BLACK OR AFRICAN AMERICAN", "New.Race"] = "Black"
+
+Master[Master[, "Race"] == "WHITE", "New.Race"] = "White"
+
+Master[Master[, "Race"] != "BLACK OR AFRICAN AMERICAN" & 
+         Master[,"Race"] != "WHITE", "New.Race"] = "Other"
 
 # Create consistent missing value indicators for variables used for analysis####
 
@@ -141,23 +150,24 @@ ControlGroupIDs = unique(Master[Master[, "Group"] == "Control Group", "ID"])
 Master.Control = Master[Master[, "ID"] %in% ControlGroupIDs, ]
 
 # combine both treatment groups back together
-NewMaster = rbind(Master.Study, Master.Control)
+NewMaster = rbind.data.frame(Master.Study, Master.Control)
 
 # order the dataset first by the patient ID and then by their visit number
 NewMaster = NewMaster[order(NewMaster[, "ID"], NewMaster[, "DaysId"]), ]
 
 # delete patients that somehow landed in both groups
-NewMaster = NewMaster[-which(NewMaster[, "ID"] %in% intersect(StudyGroupIDs, ControlGroupIDs)), ]
+# NewMaster = NewMaster[-which(NewMaster[, "ID"] %in% intersect(StudyGroupIDs, ControlGroupIDs)), ]
+# As of 12/28/2017 there are no patients in both groups
 
 # delete the patients with NO CVG
-NOCVGIDs = unique(NewMaster[NewMaster[, "CVG.Participant_Descr"] == "NO CVG", "ID" ])
-
-NewMaster = NewMaster[!(NewMaster[, "ID"] %in% NOCVGIDs), ]
+# NOCVGIDs = unique(NewMaster[NewMaster[, "CVG.Participant_Descr"] == "NO CVG", "ID" ])
+# NewMaster = NewMaster[!(NewMaster[, "ID"] %in% NOCVGIDs), ]
+# As of 12/28/2017 this no longer necessary
 
 # Create variables for days after assignment to group and important scores for each functional outcome ####
 
 # create a vector containing each ID in the dataset created above
-NewMasterIDs = unique(NewMaster[,"ID"])
+NewMasterIDs = unique(NewMaster[, "ID"])
 
 # initialize the variable for every observation's number of days after their stroke
 # when they were assigned to their treatment group
@@ -173,16 +183,16 @@ NewMaster[, "Discharge.Mobility"] = rep(NA,dim(NewMaster)[1])
 NewMaster[, "Discharge.Activity"] = rep(NA,dim(NewMaster)[1])
 NewMaster[, "Discharge.Cognitive"] = rep(NA,dim(NewMaster)[1])
 
-
 # initialize a counter for scrolling through IDs
-C=1
+C = 1
 
 # cycle through every observation in the dataset
 for (i in 1:dim(NewMaster)[1]){
   
   # if the ID for the current observation isn't equal to the ID for the previous ID, 
   # increase the counter by one to move to the next ID
-  if (NewMaster[i,"ID"] != NewMasterIDs[C] & C != (length(NewMasterIDs))){
+  if (NewMaster[i, "ID"] != NewMasterIDs[C] & 
+      C != (length(NewMasterIDs))){
     
     C = C+1
     
@@ -202,50 +212,54 @@ for (i in 1:dim(NewMaster)[1]){
   NewMaster[i, "Discharge.Mobility"] = NewMaster[NewMaster[, "DaysId"] == 2 & NewMaster[, "ID"] == NewMasterIDs[C], "PT.AM.PAC.Basic.Mobility.Score"]
   NewMaster[i, "Discharge.Activity"] = NewMaster[NewMaster[, "DaysId"] == 2 & NewMaster[, "ID"] == NewMasterIDs[C], "OT.AM.Daily.Activity.Score"]
   NewMaster[i, "Discharge.Cognitive"] = NewMaster[NewMaster[, "DaysId"] == 2 & NewMaster[, "ID"] == NewMasterIDs[C], "ST.AM.Applied.Cogn.Score"]
-  
-  
+
+  NewMaster[i, "MRS.Baseline"] = NewMaster[NewMaster[, "DaysId"] == 3 & NewMaster[, "ID"] == NewMasterIDs[C], "ModRankinScore"]
+
 }
 
 # calculate the number of days after group assignement for each observation
-NewMaster[,"Days.After.Assignment"] =
-  NewMaster[,"Days_afterOnset"] - NewMaster[,"Days.After.At.Assignment"]
+NewMaster[, "Days.After.Assignment"] =
+  NewMaster[, "Days_afterOnset"] - NewMaster[, "Days.After.At.Assignment"]
+
+# drop unused levels
+NewMaster = droplevels(NewMaster)
 
 # Fill in the blanks for CVG score and remove certain patients from the dataset ####
 
-AllStudyIDs = NewMaster[NewMaster[,"Group"] == "Study Group" &
-                          NewMaster[,"DaysId"] == 3, "ID"]
-
-CVGIDs = NewMaster[NewMaster[,"CVG.Participant_Descr"] != "" &
-                     NewMaster[,"DaysId"] == 11, "ID"]
-
-Blank.CVGIDs = setdiff(AllStudyIDs,CVGIDs)
-
-CVG.Corrections = read.csv("data/CVG Corrections.csv")[1:19,]
-
-CVG.Corrections[12:13,] = CVG.Corrections[13:12,]
-
-CVG.Corrections[CVG.Corrections[,"Education.Level"] == 9999, "Education.Level"] = NA
-
-CVG.Corrections = droplevels(CVG.Corrections)
-
-colnames(CVG.Corrections)[7:14] = c("CVG.Participant_Descr",
-                                    "CVG.Freq",
-                                    "CVG.Total",
-                                    "CVG.Baseline",
-                                    "CVG.9.Met.Minutes",
-                                    "CVG.18.Met.Minutes",
-                                    "CVG.27.Met.Minutes",
-                                    "CVG.36.Met.Minutes")
-
-for.binding = droplevels(NewMaster[NewMaster[,"ID"] %in% Blank.CVGIDs &
-                                     NewMaster[,"DaysId"] == 3, ])
-
-for.binding = for.binding[order(for.binding[,"Gender"],
-                                for.binding[,"Age"]), ]
-
-Age.list = intersect(for.binding[, c("Age")],
-                     CVG.Corrections[, c("Age")])
-
+# AllStudyIDs = NewMaster[NewMaster[,"Group"] == "Study Group" &
+#                           NewMaster[,"DaysId"] == 3, "ID"]
+# 
+# CVGIDs = NewMaster[NewMaster[,"CVG.Participant_Descr"] != "" &
+#                      NewMaster[,"DaysId"] == 11, "ID"]
+# 
+# Blank.CVGIDs = setdiff(AllStudyIDs,CVGIDs)
+# 
+# CVG.Corrections = read.csv("data/CVG Corrections.csv")[1:19,]
+# 
+# CVG.Corrections[12:13,] = CVG.Corrections[13:12,]
+# 
+# CVG.Corrections[CVG.Corrections[,"Education.Level"] == 9999, "Education.Level"] = NA
+# 
+# CVG.Corrections = droplevels(CVG.Corrections)
+# 
+# colnames(CVG.Corrections)[7:14] = c("CVG.Participant_Descr",
+#                                     "CVG.Freq",
+#                                     "CVG.Total",
+#                                     "CVG.Baseline",
+#                                     "CVG.9.Met.Minutes",
+#                                     "CVG.18.Met.Minutes",
+#                                     "CVG.27.Met.Minutes",
+#                                     "CVG.36.Met.Minutes")
+# 
+# for.binding = droplevels(NewMaster[NewMaster[,"ID"] %in% Blank.CVGIDs &
+#                                      NewMaster[,"DaysId"] == 3, ])
+# 
+# for.binding = for.binding[order(for.binding[,"Gender"],
+#                                 for.binding[,"Age"]), ]
+# 
+# Age.list = intersect(for.binding[, c("Age")],
+#                      CVG.Corrections[, c("Age")])
+# 
 # View(for.binding[(for.binding[,"Age"] %in% Age.list),
 #                  c("Age",
 #                    "Gender",
@@ -275,211 +289,190 @@ Age.list = intersect(for.binding[, c("Age")],
 #                        "Race",
 #                        "Health.Insurance.Name",
 #                        "Education.Level")]
-
-for.binding = for.binding[(for.binding[,"Age"] %in% Age.list), ]
-
-for.binding[, c("CVG.Participant_Descr",
-                "CVG.Freq",
-                "CVG.Total",
-                "CVG.Baseline",
-                "CVG.9.Met.Minutes",
-                "CVG.18.Met.Minutes",
-                "CVG.27.Met.Minutes",
-                "CVG.36.Met.Minutes")] = CVG.Corrections[(CVG.Corrections[,"Age"] %in% Age.list), 
-                                                         c("CVG.Participant_Descr",
-                                                           "CVG.Freq",
-                                                           "CVG.Total",
-                                                           "CVG.Baseline",
-                                                           "CVG.9.Met.Minutes",
-                                                           "CVG.18.Met.Minutes",
-                                                           "CVG.27.Met.Minutes",
-                                                           "CVG.36.Met.Minutes")]
-
-for.binding[, "DaysId"] = 11
-
-for.binding[, c(72:103)] = NA
-
-NewMaster = rbind.data.frame(NewMaster, for.binding)
-
-NewMaster = NewMaster[order(NewMaster[,"ID"], NewMaster[,"DaysId"]), ]
-
-Remove.IDs = unique(NewMaster[NewMaster[, "CVG.Participant_Descr"] == "NO CVG" |
-                                NewMaster[, "CVG.Participant_Descr"] == "OTHER", "ID"])
-
-NewMaster = NewMaster[NewMaster[,"ID"] != 555 & 
-                        !(NewMaster[,"ID"] %in% Remove.IDs), ]
+# 
+# for.binding = for.binding[(for.binding[,"Age"] %in% Age.list), ]
+# 
+# for.binding[, c("CVG.Participant_Descr",
+#                 "CVG.Freq",
+#                 "CVG.Total",
+#                 "CVG.Baseline",
+#                 "CVG.9.Met.Minutes",
+#                 "CVG.18.Met.Minutes",
+#                 "CVG.27.Met.Minutes",
+#                 "CVG.36.Met.Minutes")] = CVG.Corrections[(CVG.Corrections[,"Age"] %in% Age.list), 
+#                                                          c("CVG.Participant_Descr",
+#                                                            "CVG.Freq",
+#                                                            "CVG.Total",
+#                                                            "CVG.Baseline",
+#                                                            "CVG.9.Met.Minutes",
+#                                                            "CVG.18.Met.Minutes",
+#                                                            "CVG.27.Met.Minutes",
+#                                                            "CVG.36.Met.Minutes")]
+# 
+# for.binding[, "DaysId"] = 11
+# 
+# for.binding[, c(72:103)] = NA
+# 
+# NewMaster = rbind.data.frame(NewMaster, for.binding)
+# 
+# NewMaster = NewMaster[order(NewMaster[,"ID"], NewMaster[,"DaysId"]), ]
+# 
+# Remove.IDs = unique(NewMaster[NewMaster[, "CVG.Participant_Descr"] == "NO CVG" |
+#                                 NewMaster[, "CVG.Participant_Descr"] == "OTHER", "ID"])
+# 
+# NewMaster = NewMaster[NewMaster[,"ID"] != 555 & 
+#                         !(NewMaster[,"ID"] %in% Remove.IDs), ]
+# As of 12/18/2018 may not be necessary
 
 # Create a dataset with one observation for each patient ####
-NewMaster.One = NewMaster[NewMaster[,"DaysId"] == 3,]
+NewMaster.One = NewMaster[NewMaster[, "DaysId"] == 3, ]
 
 # create vectors for easy reference to each functional outcome
-ScoreName = c("Mobility", "Activity", "Cognitive")
-ScoreVarName = c("PT.AM.PAC.Basic.Mobility.Score", "OT.AM.Daily.Activity.Score", "ST.AM.Applied.Cogn.Score")
+ScoreName = c("Mobility", 
+              "Activity", 
+              "Cognitive")
 
+ScoreVarName = c("PT.AM.PAC.Basic.Mobility.Score", 
+                 "OT.AM.Daily.Activity.Score", 
+                 "ST.AM.Applied.Cogn.Score")
 
 # Create a variable for survival time ####
 
-# initialize the variables needed to calculate survival time
 NewMaster.One[, "Stroke.Date.Month"] = NA
 NewMaster.One[, "Stroke.Date.Day"] = NA
 NewMaster.One[, "Stroke.Date.Year"] = NA
-NewMaster.One[, "Discharge.Date.Number"] = NA
-NewMaster.One[, "Death.Date.Month"] = NA
-NewMaster.One[, "Death.Date.Day"] = NA
-NewMaster.One[, "Death.Date.Year"] = NA
-NewMaster.One[, "Death.Date.Number"] = NA
+NewMaster.One[, "New.Date.of.Stroke"] = NA
 NewMaster.One[, "Survival.Time"] = NA
 
-# make a vector for the number of days in each month for leap years and otherwise
-Day.Vec = c(0,31,28,31,30,31,30,31,31,30,31,30,31)
-Day.Vec.Leap = c(0,31,29,31,30,31,30,31,31,30,31,30,31) 
-
-# cycle through the deceased patients
-for (i in NewMaster.One[which(NewMaster.One[, "Deceased_Y.N"] == TRUE), "ID"]){
+# cycle through all patients
+for (i in 1:nrow(NewMaster.One)){
   
   # split the dates into their three components
-  NewMaster.One[NewMaster.One[,"ID"] == i, "Stroke.Date.Month"] = 
-    as.numeric(strsplit(paste(NewMaster.One[NewMaster.One[,"ID"] == i, "Stroke.Date"]), split = "/")[[1]][1])
+  NewMaster.One[i, "Stroke.Date.Month"] = strsplit(paste(NewMaster.One[i, "Date.of.Stroke"]), split = "/")[[1]][1]
   
-  NewMaster.One[NewMaster.One[,"ID"] == i, "Stroke.Date.Day"] = 
-    as.numeric(strsplit(paste(NewMaster.One[NewMaster.One[,"ID"] == i, "Stroke.Date"]), split = "/")[[1]][2])
-  
-  NewMaster.One[NewMaster.One[,"ID"] == i, "Stroke.Date.Year"] = 
-    as.numeric(strsplit(paste(NewMaster.One[NewMaster.One[,"ID"] == i, "Stroke.Date"]), split = "/")[[1]][3])
-  
-  NewMaster.One[NewMaster.One[,"ID"] == i, "Death.Date.Month"] = 
-    as.numeric(strsplit(paste(NewMaster.One[NewMaster.One[,"ID"] == i, "Deceased_Dt"]), split = "/")[[1]][1])
-  
-  NewMaster.One[NewMaster.One[,"ID"] == i, "Death.Date.Day"] = 
-    as.numeric(strsplit(paste(NewMaster.One[NewMaster.One[,"ID"] == i, "Deceased_Dt"]), split = "/")[[1]][2])
-  
-  NewMaster.One[NewMaster.One[,"ID"] == i, "Death.Date.Year"] = 
-    as.numeric(strsplit(paste(NewMaster.One[NewMaster.One[,"ID"] == i, "Deceased_Dt"]), split = "/")[[1]][3])
-  
-  # if the year is 2017 add 731 to the number to reflect the leap day and use the regular day vector
-  if (NewMaster.One[NewMaster.One[,"ID"] == i, "Stroke.Date.Year"] == 2017){
+  # check if the current month only has one character
+  if (nchar(NewMaster.One[i, "Stroke.Date.Month"]) == 1){
     
-    NewMaster.One[NewMaster.One[,"ID"] == i, "Discharge.Date.Number"] = 
-      sum(Day.Vec[1:NewMaster.One[NewMaster.One[,"ID"] == i, "Stroke.Date.Month"]]) + 
-      NewMaster.One[NewMaster.One[,"ID"] == i, "Stroke.Date.Day"] + 
-      NewMaster[NewMaster[,"ID"] == i & NewMaster[, "DaysId"] == 2, "Days_afterOnset"] + 731
-    
-    # if the year is 2016 use the leap year day vector    
-  }else if (NewMaster.One[NewMaster.One[,"ID"] == i, "Stroke.Date.Year"] == 2016){
-    
-    NewMaster.One[NewMaster.One[,"ID"] == i, "Discharge.Date.Number"] = 
-      sum(Day.Vec[1:NewMaster.One[NewMaster.One[,"ID"] == i, "Stroke.Date.Month"]]) + 
-      NewMaster.One[NewMaster.One[,"ID"] == i, "Stroke.Date.Day"] +
-      NewMaster[NewMaster[,"ID"] == i & NewMaster[, "DaysId"] == 2, "Days_afterOnset"] + 365
-    
-    
-    # if the year is 2015 use the regular day vector    
-  }else{ 
-    
-    NewMaster.One[NewMaster.One[,"ID"] == i, "Discharge.Date.Number"] = 
-      sum(Day.Vec[1:NewMaster.One[NewMaster.One[,"ID"] == i, "Stroke.Date.Month"]]) + 
-      NewMaster.One[NewMaster.One[,"ID"] == i, "Stroke.Date.Day"] +
-      NewMaster[NewMaster[,"ID"] == i & NewMaster[, "DaysId"] == 2, "Days_afterOnset"]    
+    # if so, properly format it
+    NewMaster.One[i, "Stroke.Date.Month"] = paste("0",
+                                                  NewMaster.One[i, "Stroke.Date.Month"],
+                                                  sep = "")
     
   }
   
-  # if the year is 2017 add 731 to the number to reflect the leap day and use the regular day vector
-  if (NewMaster.One[NewMaster.One[,"ID"] == i, "Death.Date.Year"] == 2017){
-    
-    NewMaster.One[NewMaster.One[,"ID"] == i, "Death.Date.Number"] = 
-      sum(Day.Vec[1:NewMaster.One[NewMaster.One[,"ID"] == i, "Death.Date.Month"]]) + 
-      NewMaster.One[NewMaster.One[,"ID"] == i, "Death.Date.Day"] + 731    
-    
-    # if the year is 2016 use the leap year day vector    
-  }else if (NewMaster.One[NewMaster.One[,"ID"] == i, "Death.Date.Year"] == 2016){
-    
-    NewMaster.One[NewMaster.One[,"ID"] == i, "Death.Date.Number"] = 
-      sum(Day.Vec[1:NewMaster.One[NewMaster.One[,"ID"] == i, "Death.Date.Month"]]) + 
-      NewMaster.One[NewMaster.One[,"ID"] == i, "Death.Date.Day"] + 365
-    
-    # if the year is 2015 use the regular day vector    
-  }else{ 
-    
-    NewMaster.One[NewMaster.One[,"ID"] == i, "Death.Date.Number"] = 
-      sum(Day.Vec[1:NewMaster.One[NewMaster.One[,"ID"] == i, "Death.Date.Month"]]) + 
-      NewMaster.One[NewMaster.One[,"ID"] == i, "Death.Date.Day"]   
-    
-  }
+  NewMaster.One[i, "Stroke.Date.Day"] = strsplit(paste(NewMaster.One[i, "Date.of.Stroke"]), split = "/")[[1]][2]
   
-  # calculate the survival time
-  NewMaster.One[NewMaster.One[,"ID"] == i, "Survival.Time"] = NewMaster.One[NewMaster.One[,"ID"] == i, "Death.Date.Number"] - 
-    NewMaster.One[NewMaster.One[,"ID"] == i, "Discharge.Date.Number"] 
+  NewMaster.One[i, "Stroke.Date.Year"] = strsplit(paste(NewMaster.One[i, "Date.of.Stroke"]), split = "/")[[1]][3]
+  
+  NewMaster.One[i, "New.Date.of.Stroke"] = paste(NewMaster.One[i, "Stroke.Date.Month"],
+                                                 NewMaster.One[i, "Stroke.Date.Day"],
+                                                 NewMaster.One[i, "Stroke.Date.Year"],
+                                                 sep = "/")
   
 }
 
-# create a variable for the control patient with the greatest timepoint
-long.last = max(NewMaster.One[,"Survival.Time"], na.rm = TRUE)
+NewMaster.One[, "New.Date.of.Stroke"] = as.Date(NewMaster.One[, "New.Date.of.Stroke"],
+                                                format = "%m/%d/%Y")
 
-# fill in survival time for all nondeceased patients
-NewMaster.One[NewMaster.One[, "Deceased_Y.N"] == FALSE, "Survival.Time"] = long.last + 1
+NewMaster.One[, "Deceased_Dt"] = as.Date(NewMaster.One[, "Deceased_Dt"],
+                                         format = "%m/%d/%Y")
 
-# place an NA where the deceased date was missing
-NewMaster.One[NewMaster.One[, "Deceased_Dt"] == "9/9/9999", "Survival.Time"] = NA
-
-# Create a variable for propensity score ####
-
-# create a vector containing each ID in the dataset created above
-NewMasterIDs = unique(NewMaster[,"ID"])
-
-# initialize the variable for every propensity score
-NewMaster.One[,"Propensity.Score"] = 0
-
-NewMaster.One[,"Propensity.Weight"] = 0
-
-NewMaster.One[, "Group"] = droplevels(NewMaster.One[, "Group"])
-
-NewMaster.One[,"Group"] = relevel(NewMaster.One[,"Group"], ref = "Study Group")
-
-Propensity.Variables = colnames(NewMaster.One)[c(2:3,8:10,18:20,23,30,37:44,67,116:121)]
-
-Propensity.Variables2 = colnames(NewMaster.One)[c(2:3,8:10,18:20,23,30,37:44,46:68,116:121)]
-
-fmla = as.formula(paste("Group ~ ", paste(Propensity.Variables, collapse="+")))
-
-fmla2 = as.formula(paste("Group ~ ", paste(Propensity.Variables2, collapse="+")))
-
-# calculate the propensity score for each patient
-glm.out = glm(formula = fmla,
-              family = binomial(logit),
-              data = NewMaster.One[,c("Group", Propensity.Variables)])
-
-NewMaster.One[,"Propensity.Score"] = glm.out$fitted.values
-
-NewMaster.One[NewMaster.One[, "Group"] == "Study Group", "Propensity.Weight"] =
-  1/(1-NewMaster.One[NewMaster.One[, "Group"] == "Study Group", "Propensity.Score"])
-
-NewMaster.One[NewMaster.One[, "Group"] == "Control Group", "Propensity.Weight"] =
-  1/NewMaster.One[NewMaster.One[, "Group"] == "Control Group", "Propensity.Score"]
-
-NewMaster.One[,"Sample.Weight"] = NewMaster.One[,"Propensity.Weight"]/sum(NewMaster.One[,"Propensity.Weight"])
-
-# initialize a counter for scrolling through IDs
-C=1
-
-# cycle through every observation in the dataset
-for (i in 1:dim(NewMaster)[1]){
-  
-  # if the ID for the current observation isn't equal to the ID for the previous ID,
-  # increase the counter by one to move to the next ID
-  if (NewMaster[i,"ID"] != NewMasterIDs[C] & C != (length(NewMasterIDs))){
-    
-    C = C+1
-    
-  }
-  
-  # fill in the propensity score
-  NewMaster[i,"Propensity.Score"] = NewMaster.One[NewMaster.One[,"ID"] == NewMasterIDs[C], "Propensity.Score"]
-  
-  NewMaster[i,"Propensity.Weight"] = NewMaster.One[NewMaster.One[,"ID"] == NewMasterIDs[C], "Propensity.Weight"]
-  
-  NewMaster[i,"Sample.Weight"] = NewMaster.One[NewMaster.One[,"ID"] == NewMasterIDs[C], "Sample.Weight"]
-}
+NewMaster.One[NewMaster.One[, "Deceased_Y.N"] == TRUE, "Survival.Time"] = 
+  difftime(NewMaster.One[NewMaster.One[, "Deceased_Y.N"] == TRUE, "Deceased_Dt"],
+           NewMaster.One[NewMaster.One[, "Deceased_Y.N"] == TRUE, "New.Date.of.Stroke"],
+           units = "days")
 
 # create datasets with one observation for each group
 NewMaster.One.Study = NewMaster.One[NewMaster.One[, "Group"] == "Study Group", ]
 NewMaster.One.Control = NewMaster.One[NewMaster.One[, "Group"] == "Control Group", ]
+
+# fill in survival time for all nondeceased patients
+NewMaster.One.Study[NewMaster.One.Study[, "Deceased_Y.N"] == FALSE, "Survival.Time"] = 
+  max(NewMaster.One.Study[NewMaster.One.Study[, "Deceased_Y.N"] == TRUE, "Survival.Time"], na.rm = TRUE) + 1
+
+NewMaster.One.Control[NewMaster.One.Control[, "Deceased_Y.N"] == FALSE, "Survival.Time"] = 
+  max(NewMaster.One.Control[NewMaster.One.Control[, "Deceased_Y.N"] == TRUE &
+                              NewMaster.One.Control[, "Deceased_Dt"] != "9999-09-09", "Survival.Time"], na.rm = TRUE) + 1
+
+# recombine the datasets
+NewMaster.One = rbind.data.frame(NewMaster.One.Study,
+                                 NewMaster.One.Control)
+
+NewMaster.One = NewMaster.One[order(NewMaster.One[, "ID"], 
+                                    NewMaster.One[, "DaysId"]), ]
+
+# place an NA in survival time where the deceased date was missing
+NewMaster.One[NewMaster.One[, "Deceased_Y.N"] == TRUE &
+                NewMaster.One[, "Deceased_Dt"] == "9999-09-09", "Survival.Time"] = NA
+
+# drop unused levels
+NewMaster.One = droplevels(NewMaster.One)
+
+# Create a variable for propensity score ####
+# 
+# # create a vector containing each ID in the dataset created above
+# NewMasterIDs = unique(NewMaster[,"ID"])
+# 
+# # initialize the variable for every propensity score
+# NewMaster.One[,"Propensity.Score"] = 0
+# 
+# NewMaster.One[,"Propensity.Weight"] = 0
+# 
+# NewMaster.One[, "Group"] = droplevels(NewMaster.One[, "Group"])
+# 
+# NewMaster.One[,"Group"] = relevel(NewMaster.One[,"Group"], ref = "Study Group")
+# 
+# Propensity.Variables = colnames(NewMaster.One)[c(2:3,8:10,18:20,23,30,37:44,67,116:121)]
+# 
+# Propensity.Variables2 = colnames(NewMaster.One)[c(2:3,8:10,18:20,23,30,37:44,46:68,116:121)]
+# 
+# fmla = as.formula(paste("Group ~ ", paste(Propensity.Variables, collapse="+")))
+# 
+# fmla2 = as.formula(paste("Group ~ ", paste(Propensity.Variables2, collapse="+")))
+# 
+# # calculate the propensity score for each patient
+# glm.out = glm(formula = fmla,
+#               family = binomial(logit),
+#               data = NewMaster.One[,c("Group", Propensity.Variables)])
+# 
+# NewMaster.One[,"Propensity.Score"] = glm.out$fitted.values
+# 
+# NewMaster.One[NewMaster.One[, "Group"] == "Study Group", "Propensity.Weight"] =
+#   1/(1-NewMaster.One[NewMaster.One[, "Group"] == "Study Group", "Propensity.Score"])
+# 
+# NewMaster.One[NewMaster.One[, "Group"] == "Control Group", "Propensity.Weight"] =
+#   1/NewMaster.One[NewMaster.One[, "Group"] == "Control Group", "Propensity.Score"]
+# 
+# NewMaster.One[,"Sample.Weight"] = NewMaster.One[,"Propensity.Weight"]/sum(NewMaster.One[,"Propensity.Weight"])
+# 
+# # initialize a counter for scrolling through IDs
+# C=1
+# 
+# # cycle through every observation in the dataset
+# for (i in 1:dim(NewMaster)[1]){
+#   
+#   # if the ID for the current observation isn't equal to the ID for the previous ID,
+#   # increase the counter by one to move to the next ID
+#   if (NewMaster[i,"ID"] != NewMasterIDs[C] & C != (length(NewMasterIDs))){
+#     
+#     C = C+1
+#     
+#   }
+#   
+#   # fill in the propensity score
+#   NewMaster[i,"Propensity.Score"] = NewMaster.One[NewMaster.One[,"ID"] == NewMasterIDs[C], "Propensity.Score"]
+#   
+#   NewMaster[i,"Propensity.Weight"] = NewMaster.One[NewMaster.One[,"ID"] == NewMasterIDs[C], "Propensity.Weight"]
+#   
+#   NewMaster[i,"Sample.Weight"] = NewMaster.One[NewMaster.One[,"ID"] == NewMasterIDs[C], "Sample.Weight"]
+# }
+#
+# As of 2/28/2017 this is no longer needed
+# Remove unnecessary values ####
+rm(Master,
+   Master.Control,
+   Master.Study,
+   OldMaster,
+   C,
+   i,
+   j)

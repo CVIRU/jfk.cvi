@@ -81,21 +81,39 @@ CVG.data.long.2[, "Number of Sessions"] = c(9,18,27,36)
 word = lmerTest::lmer(data = CVG.data.long.2, 
                       Diff.from.Baseline ~ `Number of Sessions` + Freq + (1|ID))
 
-summary(word)
+lmer.sum = summary(word)
+
+for.table = lmer.sum$coefficients
+
+for.table = as.data.frame(for.table)
+
+for.table[, "Conf.int"] = paste("(",
+                                round(for.table[, "Estimate"] - for.table[, "Std. Error"]*qt(0.975, df = for.table[, "df"]),2),
+                                ", ",
+                                round(for.table[, "Estimate"] + for.table[, "Std. Error"]*qt(0.975, df = for.table[, "df"]),2),
+                                ")",
+                                sep = "")
+
+for.table = for.table[, -c(2:4)]
+
+for.table = for.table[, c(1,3,2)]
+
+for.table[,1] = round(for.table[,1],2)
+for.table[,3] = round(for.table[,3],3)
+
+write.csv(for.table,
+          "docs/MELM Results CVG.csv",
+          row.names = TRUE)
 
 # Perform a one sided one sample test ####
 
-t.test(CVG.data.long.2[CVG.data.long.2[, "Follow.Up"] == "9 Sessions", "Diff.from.Baseline"],
-       alternative = "greater")
+t.test(CVG.data.long.2[CVG.data.long.2[, "Follow.Up"] == "9 Sessions", "Diff.from.Baseline"])
 
-t.test(CVG.data.long.2[CVG.data.long.2[, "Follow.Up"] == "18 Sessions", "Diff.from.Baseline"],
-       alternative = "greater")
+t.test(CVG.data.long.2[CVG.data.long.2[, "Follow.Up"] == "18 Sessions", "Diff.from.Baseline"])
 
-t.test(CVG.data.long.2[CVG.data.long.2[, "Follow.Up"] == "27 Sessions", "Diff.from.Baseline"],
-       alternative = "greater")
+t.test(CVG.data.long.2[CVG.data.long.2[, "Follow.Up"] == "27 Sessions", "Diff.from.Baseline"])
 
-t.test(CVG.data.long.2[CVG.data.long.2[, "Follow.Up"] == "36 Sessions", "Diff.from.Baseline"],
-       alternative = "greater")
+t.test(CVG.data.long.2[CVG.data.long.2[, "Follow.Up"] == "36 Sessions", "Diff.from.Baseline"])
 
 # Create bar graphs ####
 # Create dataset ####
@@ -143,148 +161,10 @@ write.csv(tmp2,
           "media/CVG/Data Tables/CVGMetsMin.csv",
           row.names = FALSE)
 
-# Average METS-Min bar graph ####
-
-# make font sizes for all succeeding plots bigger
-theme_set(theme_grey(base_size = 15)) 
-
-tmp[,3] = factor(tmp[,3],
-                 levels = c("Baseline",
-                            "9 Sessions",
-                            "18 Sessions",
-                            "27 Sessions",
-                            "36 Sessions"))
-
-ggplot(data = tmp, 
-       aes(x = Number.of.Sessions,
-           y = `Average.METS-Min`)) +
-  scale_x_discrete("Number of Sessions") +
-  scale_y_continuous("METs-Min") +
-  ggtitle("Average METs-Min by Number of Sessions") +
-  geom_bar(stat = "identity", 
-           position = "identity",
-           fill = "lightblue") +
-  geom_text(aes(label = round(tmp[, "Average.METS-Min"],0),
-                vjust = -0.3,
-                size = 5)) +
-  geom_text(aes(label = c("", rep("P-value < 0.0001",4)),
-                x = 1:5,
-                y = rep(5,5),
-                size = 5)) +
-  theme(plot.title = element_text(hjust = 0.5), 
-        plot.subtitle = element_text(hjust = 0.5),
-        legend.position = "none")
-
-ggsave("media/CVG/METs-Min Bar Graph.tiff",
-       device = "tiff",
-       width = 10,
-       height = 5, 
-       dpi = 300,
-       compression = "lzw")
-
-# Percent improvement bar graph ####
-
-ggplot(data = tmp, 
-       aes(x = Number.of.Sessions,
-           y = Average.Percent.Improvement.from.Baseline)) +
-  scale_x_discrete("Number of Sessions") +
-  scale_y_continuous("METs-Min") +
-  ggtitle("Average METs-Min by Number of Sessions",
-          subtitle = "Percent Improvement from Baseline") +
-  geom_bar(stat = "identity", 
-           position = "identity",
-           fill = "lightblue") +
-  geom_text(aes(label = paste(round(tmp[, "Average.Percent.Improvement.from.Baseline"],0),
-                              "%",
-                              sep = ""),
-                vjust = -0.3,
-                size = 5)) +
-  theme(plot.title = element_text(hjust = 0.5), 
-        plot.subtitle = element_text(hjust = 0.5),
-        legend.position = "none")
-
-ggsave("media/CVG/Percent Bar Graph.tiff",
-       device = "tiff",
-       width = 10,
-       height = 5, 
-       dpi = 300,
-       compression = "lzw")
-
-
-# Average METS-Min bar graph (no color) ####
-
-# make font sizes for all succeeding plots bigger
-theme_set(theme_grey(base_size = 15)) 
-
-tmp[,3] = factor(tmp[,3],
-                 levels = c("Baseline",
-                            "9 Sessions",
-                            "18 Sessions",
-                            "27 Sessions",
-                            "36 Sessions"))
-
-ggplot(data = tmp, 
-       aes(x = Number.of.Sessions,
-           y = `Average.METS-Min`)) +
-  scale_x_discrete("Number of Sessions") +
-  scale_y_continuous("METs-min") +
-  ggtitle("Average METs-min by Number of Sessions") +
-  geom_bar(stat = "identity", 
-           position = "identity",
-           fill = "black") +
-  geom_text(aes(label = round(tmp[, "Average.METS-Min"],0),
-                vjust = -0.3,
-                size = 5)) +
-  geom_text(aes(label = c("", rep("P-value < 0.001",4)),
-                x = 1:5,
-                y = rep(5,5),
-                size = 5),
-                color = "white") +
-  theme(plot.title = element_text(hjust = 0.5), 
-        plot.subtitle = element_text(hjust = 0.5),
-        legend.position = "none")
-
-ggsave("media/CVG/METs-Min Bar Graph (no color).tiff",
-       device = "tiff",
-       width = 10,
-       height = 5, 
-       dpi = 300,
-       compression = "lzw")
-
-# Percent improvement bar graph (no color) ####
-
-ggplot(data = tmp, 
-       aes(x = Number.of.Sessions,
-           y = Average.Percent.Improvement.from.Baseline)) +
-  scale_x_discrete("Number of Sessions") +
-  scale_y_continuous("METs-min") +
-  ggtitle("Average METs-min by Number of Sessions",
-          subtitle = "Percent Improvement from Baseline") +
-  geom_bar(stat = "identity", 
-           position = "identity",
-           fill = "black") +
-  geom_text(aes(label = paste(round(tmp[, "Average.Percent.Improvement.from.Baseline"],0),
-                              "%",
-                              sep = ""),
-                vjust = -0.3,
-                size = 5)) +
-  geom_text(x = 1.5,
-            y = 105,
-            label = "P-Value < 0.001",
-            size = 5) +
-  theme(plot.title = element_text(hjust = 0.5), 
-        plot.subtitle = element_text(hjust = 0.5),
-        legend.position = "none")
-
-ggsave("media/CVG/Percent Bar Graph (no color).tiff",
-       device = "tiff",
-       width = 10,
-       height = 5, 
-       dpi = 300,
-       compression = "lzw")
-
-
 # Side by side bar graph (no color) ####
+
+# make font sizes for all succeeding plots bigger
+theme_set(theme_grey(base_size = 15))
 
 ggplot(data = tmp2, 
        aes(x = Number.of.Sessions,
@@ -311,9 +191,9 @@ ggplot(data = tmp2,
         plot.subtitle = element_text(hjust = 0.5),
         legend.position = "none")
 
-ggsave("media/CVG/Side by Side Bar Graph (no color).tiff",
+ggsave("media/CVG/Side by Side Bar Graph (no color) (3-9-18).tiff",
        device = "tiff",
-       width = 10,
+       width = 12,
        height = 5, 
        dpi = 300,
        compression = "lzw")
@@ -344,9 +224,142 @@ ggplot(data = tmp,
   theme(plot.title = element_text(hjust = 0.5))        
 
 # save the plot
-ggsave("media/CVG/Average Line Graph (no color).tiff",
+ggsave("media/CVG/Average Line Graph (no color) (3-9-18).tiff",
        device = "tiff",
        width = 10,
        height = 5,
        dpi = 300,
        compression = "lzw")
+
+# OBSOLETE CODE ####
+# # Average METS-Min bar graph ####
+# 
+# # make font sizes for all succeeding plots bigger
+# theme_set(theme_grey(base_size = 15)) 
+# 
+# tmp[,3] = factor(tmp[,3],
+#                  levels = c("Baseline",
+#                             "9 Sessions",
+#                             "18 Sessions",
+#                             "27 Sessions",
+#                             "36 Sessions"))
+# 
+# ggplot(data = tmp, 
+#        aes(x = Number.of.Sessions,
+#            y = `Average.METS-Min`)) +
+#   scale_x_discrete("Number of Sessions") +
+#   scale_y_continuous("METs-Min") +
+#   ggtitle("Average METs-Min by Number of Sessions") +
+#   geom_bar(stat = "identity", 
+#            position = "identity",
+#            fill = "lightblue") +
+#   geom_text(aes(label = round(tmp[, "Average.METS-Min"],0),
+#                 vjust = -0.3,
+#                 size = 5)) +
+#   theme(plot.title = element_text(hjust = 0.5), 
+#         plot.subtitle = element_text(hjust = 0.5),
+#         legend.position = "none")
+# 
+# ggsave("media/CVG/METs-Min Bar Graph (3-1-18).tiff",
+#        device = "tiff",
+#        width = 10,
+#        height = 5, 
+#        dpi = 300,
+#        compression = "lzw")
+# 
+# # Percent improvement bar graph ####
+# 
+# ggplot(data = tmp, 
+#        aes(x = Number.of.Sessions,
+#            y = Average.Percent.Improvement.from.Baseline)) +
+#   scale_x_discrete("Number of Sessions") +
+#   scale_y_continuous("METs-Min") +
+#   ggtitle("Average METs-Min by Number of Sessions",
+#           subtitle = "Percent Improvement from Baseline") +
+#   geom_bar(stat = "identity", 
+#            position = "identity",
+#            fill = "lightblue") +
+#   geom_text(aes(label = paste(round(tmp[, "Average.Percent.Improvement.from.Baseline"],0),
+#                               "%",
+#                               sep = ""),
+#                 vjust = -0.3,
+#                 size = 5)) +
+#   theme(plot.title = element_text(hjust = 0.5), 
+#         plot.subtitle = element_text(hjust = 0.5),
+#         legend.position = "none")
+# 
+# ggsave("media/CVG/Percent Bar Graph (3-1-18).tiff",
+#        device = "tiff",
+#        width = 10,
+#        height = 5, 
+#        dpi = 300,
+#        compression = "lzw")
+# 
+# 
+# # Average METS-Min bar graph (no color) ####
+# 
+# # make font sizes for all succeeding plots bigger
+# theme_set(theme_grey(base_size = 15)) 
+# 
+# tmp[,3] = factor(tmp[,3],
+#                  levels = c("Baseline",
+#                             "9 Sessions",
+#                             "18 Sessions",
+#                             "27 Sessions",
+#                             "36 Sessions"))
+# 
+# ggplot(data = tmp, 
+#        aes(x = Number.of.Sessions,
+#            y = `Average.METS-Min`)) +
+#   scale_x_discrete("Number of Sessions") +
+#   scale_y_continuous("METs-min") +
+#   ggtitle("Average METs-min by Number of Sessions") +
+#   geom_bar(stat = "identity", 
+#            position = "identity",
+#            fill = "black") +
+#   geom_text(aes(label = round(tmp[, "Average.METS-Min"],0),
+#                 vjust = -0.3,
+#                 size = 5)) +
+#   theme(plot.title = element_text(hjust = 0.5), 
+#         plot.subtitle = element_text(hjust = 0.5),
+#         legend.position = "none")
+# 
+# ggsave("media/CVG/METs-Min Bar Graph (no color) (3-1-18).tiff",
+#        device = "tiff",
+#        width = 10,
+#        height = 5, 
+#        dpi = 300,
+#        compression = "lzw")
+# 
+# # Percent improvement bar graph (no color) ####
+# 
+# ggplot(data = tmp, 
+#        aes(x = Number.of.Sessions,
+#            y = Average.Percent.Improvement.from.Baseline)) +
+#   scale_x_discrete("Number of Sessions") +
+#   scale_y_continuous("METs-min") +
+#   ggtitle("Average METs-min by Number of Sessions",
+#           subtitle = "Percent Improvement from Baseline") +
+#   geom_bar(stat = "identity", 
+#            position = "identity",
+#            fill = "black") +
+#   geom_text(aes(label = paste(round(tmp[, "Average.Percent.Improvement.from.Baseline"],0),
+#                               "%",
+#                               sep = ""),
+#                 vjust = -0.3,
+#                 size = 5)) +
+#   geom_text(x = 1.5,
+#             y = 105,
+#             label = "P-Value < 0.001",
+#             size = 5) +
+#   theme(plot.title = element_text(hjust = 0.5), 
+#         plot.subtitle = element_text(hjust = 0.5),
+#         legend.position = "none")
+# 
+# ggsave("media/CVG/Percent Bar Graph (no color) (3-1-18).tiff",
+#        device = "tiff",
+#        width = 10,
+#        height = 5, 
+#        dpi = 300,
+#        compression = "lzw")
+# 

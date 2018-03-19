@@ -13,7 +13,7 @@
 ### is greater than the days after onset for DaysID==j, 171 instances of this, 
 ### 15 make it to final matched analysis
 ### ID 99 has Dis-FIM Motor score of 8
-### ID 156 has 27552.8 for group met mins, 204 has 259975 group met mins
+### ID 765 has 20442.4 for met mins
 
 # Load the necessary source code ####
 source("source/Traymon's Source Code/Data Reconfiguration/upload data.R")
@@ -141,21 +141,14 @@ source("source/Traymon's Source Code/Data Reconfiguration/upload data.R")
 #           c("ID", "CVG.Total")]
 # 
 # for (i in 1:8){
-#   
-#   print(length(NewMaster[NewMaster[,"DaysId"] == i, "DaysId"]) == 
+# 
+#   print(length(NewMaster[NewMaster[,"DaysId"] == i, "DaysId"]) ==
 #           length(unique(NewMaster[NewMaster[,"DaysId"] == i, "ID"])))
-#   
+# 
 # }
+# As of 2/28/2018 the data is within normal ranges
 
-# Correct data with incorrect measurements ####
-
-NewMaster[NewMaster[, "ID"] == 99, "ARHosp.JRI.Dis.FIM.Motor"] = 18 
-NewMaster[NewMaster[, "ID"] == 156, "Cardiovascular.Group.Met.Mins"] = 102.3
-NewMaster[NewMaster[, "ID"] == 204, "Cardiovascular.Group.Met.Mins"] = NA
-
-NewMaster = NewMaster[-which(NewMaster[, "ID"] == 614 &
-                  NewMaster[, "DaysId"] == 6)[2],]
-
+# # Find the patients with days after onset entered incorrectly ####
 # ErrorIDs = NewMaster[NewMaster[, "DaysId"] > 2 &
 #                        NewMaster[, "DaysId"] < 9 &
 #                        NewMaster[, "Days.After.Assignment"] < 0, "ID"]
@@ -169,24 +162,14 @@ NewMaster = NewMaster[-which(NewMaster[, "ID"] == 614 &
 #                                                         "DaysId",
 #                                                         "Days_afterOnset",
 #                                                         "Days.After.Assignment")])
-
-NewMaster[NewMaster[, "DaysId"] > 2 &
-             NewMaster[, "DaysId"] < 9 &
-             NewMaster[, "Days.After.Assignment"] < 0, "Days.After.Assignment"] = NA
-
-# ErrorIDs = NewMaster[NewMaster[, "DaysId"] > 2 &
-#                        NewMaster[, "DaysId"] < 9 &
-#                        is.na(NewMaster[, "Days.After.Assignment"]) == 1, "ID"]
 # 
-# View(NewMaster[(NewMaster[, "DaysId"] > 2 &
-#                  NewMaster[, "DaysId"] < 9 &
-#                  is.na(NewMaster[, "Days.After.Assignment"]) == 1) |
-#                  (NewMaster[, "DaysId"] == 2 &
-#                     NewMaster[, "ID"] %in% ErrorIDs), c("ID",
-#                                                              "Group",
-#                                                              "DaysId",
-#                                                              "Days_afterOnset",
-#                                                              "Days.After.Assignment")])
+# table(NewMaster[(NewMaster[, "DaysId"] > 2 &
+#              NewMaster[, "DaysId"] < 9 &
+#              NewMaster[, "Days.After.Assignment"] < 0) |
+#             (NewMaster[, "DaysId"] == 2 &
+#                NewMaster[, "ID"] %in% ErrorIDs), c("Group")])
+# As of 2/28/2018 there are 215 patients (212 control, 3 study) 
+# with incorrect observations in days after onset
 
 # # Check the median and range of follow up days after assignment ####
 # 
@@ -195,4 +178,19 @@ NewMaster[NewMaster[, "DaysId"] > 2 &
 # 
 # range(NewMaster[NewMaster[, "DaysId"] > 2 &
 #                   NewMaster[, "Days.After.Assignment"] >= 0, "Days.After.Assignment"], na.rm = TRUE)
+# As of 2/28/2018, median is 85, range is 0 to 399
 
+correct.mets = NewMaster[NewMaster[, "ID"] == 765, "Cardiovascular.Group.Intensity.Mets."][6]
+correct.mins = NewMaster[NewMaster[, "ID"] == 765, "Cardiovascular.Group.Tot.Mins"][6]
+NewMaster[!is.na(NewMaster[, "Cardiovascular.Group.Met.Mins"])&
+            NewMaster[, "Cardiovascular.Group.Met.Mins"] == 20442.4, "Cardiovascular.Group.Met.Mins"] = correct.mets*correct.mins
+
+NewMaster[NewMaster[, "DaysId"] > 2 &
+             NewMaster[, "DaysId"] < 9 &
+             NewMaster[, "Days.After.Assignment"] < 0, "Days.After.Assignment"] = NA
+# Correct data with incorrect measurements ####
+
+
+# Remove unnecessary values ####
+rm(correct.mets,
+   correct.mins)
