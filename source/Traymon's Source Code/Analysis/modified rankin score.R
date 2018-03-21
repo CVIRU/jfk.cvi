@@ -3,7 +3,7 @@
 #Author: Traymon Beavers                                                           #
 #Depends: ggplot2                                                                  #
 #Date Created: 7/21/2017                                                           #
-#Date Updated: 3/1/2018                                                            #
+#Date Updated: 3/21/2018                                                           #
 #Purpose: To perform analysis on the stroke rehabilitation program modified rankin #
 #         score data by matching patients in the study group with patients in the  #
 #         control group and then conducting various statistical procedures with    #
@@ -229,14 +229,14 @@ prop.test(tmp.table)
 
 # Create stacked bar graph plot (no color) ####
 
-modrankin.data[modrankin.data[, "Group"] == "Study Group", "Group"] = "SRP Participant"
+modrankin.data[modrankin.data[, "Group"] == "Study Group", "Group"] = "SRP-participant"
 
 modrankin.data[modrankin.data[, "Group"] == "Control Group", "Group"] = "Non-participant"
 
 for.lines2 = c(sum(modrankin.data[modrankin.data[,"Follow.Up.Id"] == "30 Day" &
                                     modrankin.data[,"Score"] >= 3 &
                                     modrankin.data[,"Score"] <= 5 &
-                                    modrankin.data[,"Group"] == "SRP Participant", "Percent"]),
+                                    modrankin.data[,"Group"] == "SRP-participant", "Percent"]),
 
                sum(modrankin.data[modrankin.data[,"Follow.Up.Id"] == "30 Day" &
                                     modrankin.data[,"Score"] >= 3 &
@@ -246,7 +246,7 @@ for.lines2 = c(sum(modrankin.data[modrankin.data[,"Follow.Up.Id"] == "30 Day" &
                sum(modrankin.data[modrankin.data[,"Follow.Up.Id"] == "90 Day" &
                                     modrankin.data[,"Score"] >= 3 &
                                     modrankin.data[,"Score"] <= 5 &
-                                    modrankin.data[,"Group"] == "SRP Participant", "Percent"]),
+                                    modrankin.data[,"Group"] == "SRP-participant", "Percent"]),
 
                sum(modrankin.data[modrankin.data[,"Follow.Up.Id"] == "90 Day" &
                                     modrankin.data[,"Score"] >= 3 &
@@ -256,7 +256,7 @@ for.lines2 = c(sum(modrankin.data[modrankin.data[,"Follow.Up.Id"] == "30 Day" &
                sum(modrankin.data[modrankin.data[,"Follow.Up.Id"] == "120 Day" &
                                     modrankin.data[,"Score"] >= 3 &
                                     modrankin.data[,"Score"] <= 5 &
-                                    modrankin.data[,"Group"] == "SRP Participant", "Percent"]),
+                                    modrankin.data[,"Group"] == "SRP-participant", "Percent"]),
 
                sum(modrankin.data[modrankin.data[,"Follow.Up.Id"] == "120 Day" &
                                     modrankin.data[,"Score"] >= 3 &
@@ -312,7 +312,7 @@ ggplot(data = modrankin.data[modrankin.data[, "Follow.Up.Id"] != "180 Day" &
                                    hjust = 1),
         legend.position = "top")
 
-ggsave("media/Modified Rankin Score/Mod Rankin Score Stacked Bar Graph (After Matching) (3-9-2018).tiff",
+ggsave("media/Modified Rankin Score/Mod Rankin Score Stacked Bar Graph (After Matching) (3-21-2018).tiff",
        device = "tiff",
        width = 8.25,
        height = 6,

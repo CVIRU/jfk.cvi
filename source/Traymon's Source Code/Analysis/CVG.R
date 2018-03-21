@@ -3,7 +3,7 @@
 #Author: Traymon Beavers                                                           #
 #Depends: upload data.R, ggplot2, lmerTest                                         #
 #Date Created: 7/21/2017                                                           #
-#Date Updated: 3/20/2018                                                           #
+#Date Updated: 3/21/2018                                                           #
 #Purpose: To perform analysis on the stroke rehabilitation program cardiovascular  #
 #         group data, as well as provide a collection of plots                     #
 ####################################################################################
@@ -248,6 +248,57 @@ ggplot(data = tmp2,
         legend.position = "none")
 
 ggsave("media/CVG/Side by Side Bar Graph (no color, CI) (3-20-18).tiff",
+       device = "tiff",
+       width = 13,
+       height = 6, 
+       dpi = 300,
+       compression = "lzw")
+
+ggplot(data = tmp2, 
+       aes(x = Number.of.Sessions,
+           y = `METS-Min`)) +
+  facet_wrap(~Type, nrow = 1) +
+  scale_x_discrete("Number of Sessions") +
+  scale_y_continuous("METs-min") +
+  ggtitle("METs-min") +
+  geom_bar(stat = "identity", 
+           position = "identity",
+           fill = "black") +
+  geom_text(aes(label = c(round(tmp2[1:5, "METS-Min"],0)
+                          ,paste(round(tmp2[6:10, "METS-Min"],0),
+                                 "%",
+                                 sep = "")),
+                vjust = -0.3,
+                size = 5)) +
+  geom_text(aes(label = rep(c("", rep("P < 0.001",4)),2),
+                x = c(1:5,1:5),
+                y = rep(15,10)),
+            size = 4,
+            color = "white") +
+  geom_text(aes(label = rep(c("", rep("95% CI",4)),2),
+                x = c(1:5,1:5),
+                y = rep(10,10)),
+            size = 4,
+            color = "white") +
+  geom_text(aes(label = c("", 
+                          "(8.86,13.39)",
+                          "(15.83,23.14)",
+                          "(24.07,32.39)",
+                          "(40.53,54.05)",
+                          "",
+                          "(20.13,37.18)",
+                          "(37.81,57.54)",
+                          "(54.63,72.09)",
+                          "(89.86,116.76)"),
+                x = c(1:5,1:5),
+                y = rep(5,10)),
+            size = 4,
+            color = "white") +
+  theme(plot.title = element_text(hjust = 0.5), 
+        plot.subtitle = element_text(hjust = 0.5),
+        legend.position = "none")
+
+ggsave("media/CVG/Side by Side Bar Graph (no color, P & CI) (3-21-18).tiff",
        device = "tiff",
        width = 13,
        height = 6, 

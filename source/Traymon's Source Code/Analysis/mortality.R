@@ -3,7 +3,7 @@
 #Author: Traymon Beavers                                                           #
 #Depends: create matches.R, ggplot2, lmerTest, gridExtra, survival, data.table     #
 #Date Created: 7/21/2017                                                           #
-#Date Updated: 3/20/2018                                                           #
+#Date Updated: 3/21/2018                                                           #
 #Purpose: To perform analysis on the stroke rehabilitation program mortality data  #
 #         by matching patients in the study group with patients in the control     #
 #         group and then conducting various statistical procedures with respect to #
@@ -227,6 +227,40 @@ ggsave("media/Mortality/Survival Curve (After Matching, CI) 3-20-2018.tiff",
        height = 5, 
        dpi = 300,
        compression = "lzw")
+
+ggplot(tmp.data2,
+       aes(x = Time,
+           y = Surv.Prob,
+           group = Group)) +
+  geom_step(aes(linetype = Group)) +
+  scale_x_continuous("Days After Stroke") +
+  scale_y_continuous("Probability of Survival",
+                     limits = c(.875, 1)) +
+  scale_linetype_manual(values = c("dashed", "solid"),
+                        labels = c("Non-participant", "SRP-participant")) +
+  geom_text(x = 100, 
+            y = 0.91, 
+            label = "P = 0.018",
+            size = 5) +  
+  geom_text(x = 100, 
+            y = 0.9, 
+            label = "95% CI",
+            size = 5) +
+  geom_text(x = 100, 
+            y = 0.89, 
+            label = "(16.17,43.31)",
+            size = 5) +
+  ggtitle("Survival Curves for All-Cause Mortality by Rehabilitation Group") +
+  theme(plot.title = element_text(hjust = 0.5),
+        legend.position = "top")
+
+ggsave("media/Mortality/Survival Curve (After Matching, P & CI) 3-21-2018.tiff", 
+       device = "tiff",
+       width = 8,
+       height = 5, 
+       dpi = 300,
+       compression = "lzw")
+
 
 # Calculate hazard ratios ####
 
