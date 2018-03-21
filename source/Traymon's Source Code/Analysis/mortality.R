@@ -3,12 +3,16 @@
 #Author: Traymon Beavers                                                           #
 #Depends: create matches.R, ggplot2, lmerTest, gridExtra, survival, data.table     #
 #Date Created: 7/21/2017                                                           #
-#Date Updated: 3/1/2018                                                            #
+#Date Updated: 3/20/2018                                                           #
 #Purpose: To perform analysis on the stroke rehabilitation program mortality data  #
 #         by matching patients in the study group with patients in the control     #
 #         group and then conducting various statistical procedures with respect to #
 #         the matched pairs, as well as provide a collection of plots              #                                                                    #
 ####################################################################################
+
+# twice the estimator minus the 97.5 percentile gives 2.5 percentile of bootstrap CI
+# twice the estimator minus the 2.5 percentile gives 97.5 percentile of bootstrap CI
+
 
 # Load the necessary source code and functions ####
 source("source/Traymon's Source Code/Analysis/create matches.R")
@@ -189,6 +193,35 @@ ggplot(tmp.data2,
         legend.position = "top")
 
 ggsave("media/Mortality/Survival Curve (After Matching) 3-9-2018.tiff", 
+       device = "tiff",
+       width = 8,
+       height = 5, 
+       dpi = 300,
+       compression = "lzw")
+
+ggplot(tmp.data2,
+       aes(x = Time,
+           y = Surv.Prob,
+           group = Group)) +
+  geom_step(aes(linetype = Group)) +
+  scale_x_continuous("Days After Stroke") +
+  scale_y_continuous("Probability of Survival",
+                     limits = c(.875, 1)) +
+  scale_linetype_manual(values = c("dashed", "solid"),
+                        labels = c("Non-participant", "SRP Participant")) +
+  geom_text(x = 100, 
+            y = 0.92, 
+            label = "95% CI",
+            size = 5) +
+  geom_text(x = 100, 
+            y = 0.91, 
+            label = "(16.17,43.31)",
+            size = 5) +
+  ggtitle("Survival Curves for All-Cause Mortality by Rehabilitation Group") +
+  theme(plot.title = element_text(hjust = 0.5),
+        legend.position = "top")
+
+ggsave("media/Mortality/Survival Curve (After Matching, CI) 3-20-2018.tiff", 
        device = "tiff",
        width = 8,
        height = 5, 
@@ -389,8 +422,14 @@ hist(ABC.for.int,
 # get p-value for one-sided test
 mean(ABC>obs.ABC)
 
-# get confidence interval
+mean(ABC)
+
+# get confidence interval (percentile method)
 quantile(ABC.for.int, c(0.025, .975))
+
+# get confidence interval (bootstrap method)
+2*obs.ABC - quantile(ABC.for.int, 0.025)
+2*obs.ABC - quantile(ABC.for.int, 0.975)
 
 # Perform bootstrap test to find first significant survival time ####
 

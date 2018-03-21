@@ -3,7 +3,7 @@
 #Author: Traymon Beavers                                                           #
 #Depends: upload data.R, ggplot2, lmerTest                                         #
 #Date Created: 7/21/2017                                                           #
-#Date Updated: 9/27/2017                                                           #
+#Date Updated: 3/20/2018                                                           #
 #Purpose: To perform analysis on the stroke rehabilitation program cardiovascular  #
 #         group data, as well as provide a collection of plots                     #
 ####################################################################################
@@ -72,6 +72,8 @@ for (i in unique(CVG.data.wide[, "ID"])){
 
 CVG.data.long[, "Diff.from.Baseline"] = CVG.data.long[, "Met.Minutes"] - CVG.data.long[, "Baseline.Met.Minutes"] 
 
+CVG.data.long[, "Percent.Improvement.from.Baseline"] = CVG.data.long[, "Diff.from.Baseline"]/CVG.data.long[, "Baseline.Met.Minutes"] 
+
 CVG.data.long.2 = CVG.data.long[CVG.data.long[, "Follow.Up"] != "Baseline", ]
 
 CVG.data.long.2[, "Number of Sessions"] = c(9,18,27,36)
@@ -115,6 +117,14 @@ t.test(CVG.data.long.2[CVG.data.long.2[, "Follow.Up"] == "27 Sessions", "Diff.fr
 
 t.test(CVG.data.long.2[CVG.data.long.2[, "Follow.Up"] == "36 Sessions", "Diff.from.Baseline"])
 
+t.test(CVG.data.long.2[CVG.data.long.2[, "Follow.Up"] == "9 Sessions", "Percent.Improvement.from.Baseline"])
+
+t.test(CVG.data.long.2[CVG.data.long.2[, "Follow.Up"] == "18 Sessions", "Percent.Improvement.from.Baseline"])
+
+t.test(CVG.data.long.2[CVG.data.long.2[, "Follow.Up"] == "27 Sessions", "Percent.Improvement.from.Baseline"])
+
+t.test(CVG.data.long.2[CVG.data.long.2[, "Follow.Up"] == "36 Sessions", "Percent.Improvement.from.Baseline"])
+
 # Create bar graphs ####
 # Create dataset ####
 
@@ -151,11 +161,11 @@ tmp2[,1] = c(tmp[1:5,1],tmp[1:5,2])
 
 tmp2[,2] = rep(tmp[,3],2)
 
-tmp2[,3] = rep(c("MET-min","Average Percent Improvement from Baseline"),
+tmp2[,3] = rep(c("METs-min","Average Percent Improvement from Baseline"),
                  each = 5)
 
 tmp2[,3] = factor(tmp2[,3],
-                  levels = c("MET-min","Average Percent Improvement from Baseline"))
+                  levels = c("METs-min","Average Percent Improvement from Baseline"))
 
 write.csv(tmp2,
           "media/CVG/Data Tables/CVGMetsMin.csv",
@@ -171,8 +181,8 @@ ggplot(data = tmp2,
            y = `METS-Min`)) +
   facet_wrap(~Type, nrow = 1) +
   scale_x_discrete("Number of Sessions") +
-  scale_y_continuous("MET-min") +
-  ggtitle("MET-min") +
+  scale_y_continuous("METs-min") +
+  ggtitle("METs-min") +
   geom_bar(stat = "identity", 
            position = "identity",
            fill = "black") +
@@ -195,6 +205,52 @@ ggsave("media/CVG/Side by Side Bar Graph (no color) (3-9-18).tiff",
        device = "tiff",
        width = 12,
        height = 5, 
+       dpi = 300,
+       compression = "lzw")
+
+ggplot(data = tmp2, 
+       aes(x = Number.of.Sessions,
+           y = `METS-Min`)) +
+  facet_wrap(~Type, nrow = 1) +
+  scale_x_discrete("Number of Sessions") +
+  scale_y_continuous("METs-min") +
+  ggtitle("METs-min") +
+  geom_bar(stat = "identity", 
+           position = "identity",
+           fill = "black") +
+  geom_text(aes(label = c(round(tmp2[1:5, "METS-Min"],0)
+                          ,paste(round(tmp2[6:10, "METS-Min"],0),
+                                 "%",
+                                 sep = "")),
+                vjust = -0.3,
+                size = 5)) +
+  geom_text(aes(label = rep(c("", rep("95% CI",4)),2),
+                x = c(1:5,1:5),
+                y = rep(10,10)),
+            size = 4,
+            color = "white") +
+  geom_text(aes(label = c("", 
+                          "(8.86,13.39)",
+                          "(15.83,23.14)",
+                          "(24.07,32.39)",
+                          "(40.53,54.05)",
+                          "",
+                          "(20.13,37.18)",
+                          "(37.81,57.54)",
+                          "(54.63,72.09)",
+                          "(89.86,116.76)"),
+                x = c(1:5,1:5),
+                y = rep(5,10)),
+            size = 4,
+            color = "white") +
+  theme(plot.title = element_text(hjust = 0.5), 
+        plot.subtitle = element_text(hjust = 0.5),
+        legend.position = "none")
+
+ggsave("media/CVG/Side by Side Bar Graph (no color, CI) (3-20-18).tiff",
+       device = "tiff",
+       width = 13,
+       height = 6, 
        dpi = 300,
        compression = "lzw")
 

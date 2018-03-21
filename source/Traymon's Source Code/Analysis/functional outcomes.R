@@ -4,7 +4,7 @@
 #Depends: create matches.R, follow up analysis.R, lmer analysis.R, ggplot2,        # 
 #         lmerTest, gridExtra, data.table                                          #
 #Date Created: 7/21/2017                                                           #
-#Date Updated: 3/5/2018                                                            #
+#Date Updated: 3/20/2018                                                           #
 #Purpose: To perform analysis on the stroke rehabilitation program functional      #
 #         outcome data by matching patients in the study group with patients in    #
 #         the control group and then conducting various statistical procedures     #
@@ -198,6 +198,72 @@ ggsave("media/Functional Outcomes/AM PAC Average Line Graphs (After Matching) (n
        dpi = 300,
        compression = "lzw")
 
+# create line plot
+ggplot(data = tmp2,
+       aes(x = DaysId,
+           y = Score,
+           group = Group)) +
+  facet_wrap(~Score.Type, nrow = 1) +
+  geom_text(data = data.frame(Score.Type = c("Basic Mobility",
+                                             "Daily Activity",
+                                             "Applied Cognitive"),
+                              label = c("(7.09,10.69)",
+                                        "(7.46,11.85)",
+                                        "(3.50,9.93)")),
+            aes(x = 4.25,
+                y = 32.5,
+                label = label),
+            inherit.aes = FALSE,
+            size = 5) +
+  geom_text(data = data.frame(Score.Type = c("Basic Mobility",
+                                             "Daily Activity",
+                                             "Applied Cognitive"),
+                              label = c("95% CI",
+                                        "95% CI",
+                                        "95% CI")),
+            aes(x = 4.25,
+                y = 35.5,
+                label = label),
+            inherit.aes = FALSE,
+            size = 5) +
+  ggtitle(expression("Average" ~ AM-PAC^{TM} ~ "Score by Follow Up Time Point")) +
+  geom_line() +
+  geom_point(aes(x = DaysId,
+                 y = Score,
+                 shape = shape.ggplot),
+             fill = "black",
+             size = 3) +
+  scale_shape_manual("",
+                     values = c(15,
+                                16,
+                                17,
+                                8),
+                     labels = c("Admission",
+                                "Discharge",
+                                "Non-participant",
+                                "SRP participant")) +
+  scale_x_discrete("Follow Up Time Point",
+                   limits = c("Admission",
+                              "Discharge",
+                              "30 Day",
+                              "60 Day",
+                              "90 Day",
+                              "120 Day")) +
+  scale_y_continuous(expression(AM-PAC^{TM} ~ "Score"),
+                     limits = c(25, 65)) +
+  theme(legend.position = "top",
+        plot.title = element_text(hjust = 0.5),
+        axis.text.x = element_text(angle = 45,
+                                   hjust = 1))
+
+# save the plot
+ggsave("media/Functional Outcomes/AM PAC Average Line Graphs (After Matching) (no color, CI) (3-20-2018).tiff",
+       device = "tiff",
+       width = 10,
+       height = 5,
+       dpi = 300,
+       compression = "lzw")
+
 # Conduct follow up analysis for each score and each time point ####
 
 # cycle through the different functional outcomes
@@ -227,6 +293,28 @@ for (i in 1:3){
 
     # print the results
     print(summary(results))
+    
+    lmer.sum = summary(results)
+    
+    for.table = lmer.sum$coefficients
+    
+    for.table = as.data.frame(for.table)
+    
+    for.table[, "Conf.int"] = paste("(",
+                                    round(for.table[, "Estimate"] - for.table[, "Std. Error"]*qt(0.975, df = for.table[, "df"]),2),
+                                    ", ",
+                                    round(for.table[, "Estimate"] + for.table[, "Std. Error"]*qt(0.975, df = for.table[, "df"]),2),
+                                    ")",
+                                    sep = "")
+    
+    for.table = for.table[, -c(2:4)]
+    
+    for.table = for.table[, c(1,3,2)]
+    
+    for.table[,1] = round(for.table[,1],2)
+    for.table[,3] = round(for.table[,3],3)
+    
+    print(for.table)
 
     if (i == 1 & j == 4){
 
@@ -248,6 +336,7 @@ for (i in 1:3){
   }
 
 }
+
 
 # OBSOLETE CODE ####
 # # Create line plot for each score (No Matching) (no color) ####

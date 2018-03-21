@@ -3,7 +3,7 @@
 #Author: Traymon Beavers                                                           #
 #Depends: matching.R, final matching.R                                             #
 #Date Created: 4/15/2017                                                           #
-#Date Updated: 3/9/2018                                                            #
+#Date Updated: 3/20/2018                                                           #
 #Purpose: To match the data based on gender, race, type of stroke, age, baseline   #
 #         functional outcome scores, propensity score, and facility adjustor number#
 #         and then perform a paired t-test with each match acting as a pair        #
@@ -127,9 +127,8 @@ follow.up.analysis = function(AgeNum = 5,
   # delete the initial 0
   test.data = test.data[-1]
   
-  # conduct a one-sided t-test with the data
-  result = t.test(test.data,
-                  alternative = "greater")
+  # conduct a two-sided t-test with the data
+  result = t.test(test.data)
   
   # output the result
   return(result)
