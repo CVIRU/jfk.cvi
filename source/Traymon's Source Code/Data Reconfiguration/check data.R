@@ -3,7 +3,7 @@
 #Author: Traymon Beavers                                                           #
 #Depends: upload data.R                                                            #
 #Date Created: 7/21/2017                                                           #
-#Date Updated: 9/27/2017                                                           #
+#Date Updated: 6/7/2018                                                            #
 #Purpose: To check whether data is appropriate and remove incorrect data points if #
 #         necessary                                                                #
 ####################################################################################
@@ -146,9 +146,14 @@ source("source/Traymon's Source Code/Data Reconfiguration/upload data.R")
 #           length(unique(NewMaster[NewMaster[,"DaysId"] == i, "ID"])))
 # 
 # }
-# As of 2/28/2018 the data is within normal ranges
+# # As of 6/7/2018 the data is within normal ranges except for ID 765 which is fixed below
 
-# # Find the patients with days after onset entered incorrectly ####
+correct.mets = NewMaster[NewMaster[, "ID"] == 765, "Cardiovascular.Group.Intensity.Mets."][6]
+correct.mins = NewMaster[NewMaster[, "ID"] == 765, "Cardiovascular.Group.Tot.Mins"][6]
+NewMaster[!is.na(NewMaster[, "Cardiovascular.Group.Met.Mins"]) &
+            NewMaster[, "Cardiovascular.Group.Met.Mins"] == 20442.4, "Cardiovascular.Group.Met.Mins"] = correct.mets*correct.mins
+
+# Find the patients with days after onset entered incorrectly ####
 # ErrorIDs = NewMaster[NewMaster[, "DaysId"] > 2 &
 #                        NewMaster[, "DaysId"] < 9 &
 #                        NewMaster[, "Days.After.Assignment"] < 0, "ID"]
@@ -164,32 +169,25 @@ source("source/Traymon's Source Code/Data Reconfiguration/upload data.R")
 #                                                         "Days.After.Assignment")])
 # 
 # table(NewMaster[(NewMaster[, "DaysId"] > 2 &
-#              NewMaster[, "DaysId"] < 9 &
-#              NewMaster[, "Days.After.Assignment"] < 0) |
-#             (NewMaster[, "DaysId"] == 2 &
-#                NewMaster[, "ID"] %in% ErrorIDs), c("Group")])
-# As of 2/28/2018 there are 215 patients (212 control, 3 study) 
-# with incorrect observations in days after onset
+#                    NewMaster[, "DaysId"] < 9 &
+#                    NewMaster[, "Days.After.Assignment"] < 0) |
+#                   (NewMaster[, "DaysId"] == 2 &
+#                     NewMaster[, "ID"] %in% ErrorIDs), c("Group")])
+# As of 6/7/2018 there are 215 patients (212 control, 3 study)
+# with incorrect observations in days after onset, all relabeled as NA below
 
-# # Check the median and range of follow up days after assignment ####
+NewMaster[NewMaster[, "DaysId"] > 2 &
+            NewMaster[, "DaysId"] < 9 &
+            NewMaster[, "Days.After.Assignment"] < 0, "Days.After.Assignment"] = NA
+
+# Check the median and range of follow up days after assignment ####
 # 
 # median(NewMaster[NewMaster[, "DaysId"] > 2 &
 #                   NewMaster[, "Days.After.Assignment"] >= 0, "Days.After.Assignment"], na.rm = TRUE)
 # 
 # range(NewMaster[NewMaster[, "DaysId"] > 2 &
 #                   NewMaster[, "Days.After.Assignment"] >= 0, "Days.After.Assignment"], na.rm = TRUE)
-# As of 2/28/2018, median is 85, range is 0 to 399
-
-correct.mets = NewMaster[NewMaster[, "ID"] == 765, "Cardiovascular.Group.Intensity.Mets."][6]
-correct.mins = NewMaster[NewMaster[, "ID"] == 765, "Cardiovascular.Group.Tot.Mins"][6]
-NewMaster[!is.na(NewMaster[, "Cardiovascular.Group.Met.Mins"])&
-            NewMaster[, "Cardiovascular.Group.Met.Mins"] == 20442.4, "Cardiovascular.Group.Met.Mins"] = correct.mets*correct.mins
-
-NewMaster[NewMaster[, "DaysId"] > 2 &
-             NewMaster[, "DaysId"] < 9 &
-             NewMaster[, "Days.After.Assignment"] < 0, "Days.After.Assignment"] = NA
-# Correct data with incorrect measurements ####
-
+# As of 6/7/2018, median is 85, range is 0 to 399
 
 # Remove unnecessary values ####
 rm(correct.mets,

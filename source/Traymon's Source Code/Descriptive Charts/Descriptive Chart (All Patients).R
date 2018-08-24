@@ -3,7 +3,7 @@
 #Author: Traymon Beavers                                                           #
 #Depends: interpolate.R                                                            #
 #Date Created: 7/21/2017                                                           #
-#Date Updated: 3/7/2018                                                            #
+#Date Updated: 6/7/2018                                                            #
 #Purpose: To create and save a descriptive chart comparing the study group and     #
 #         control group patients; entire sample                                    #
 ####################################################################################
@@ -363,40 +363,6 @@ entire.demo.chart = entire.demo.chart[c(1:15,
                                         63:65, 
                                         16:62), ]
 
-# # For modified rankin score ####
-# 
-# # create a table for the number of patients in each category of race
-# tmp.table = table(Interpolate.Master.One[, c("Group", "ModRankinScore")])
-# 
-# # conduct a chi square test for race
-# tmp = chisq.test(tmp.table)
-# 
-# # create a slot for each category of race
-# for (i in colnames(tmp.table)){
-#   
-#   # place the number of patients in the current category that are in the study group in the chart
-#   entire.demo.chart[i, 1] = tmp.table[1, i]
-#   
-#   # place the sample proportion of patients in the current category that are in the study group in the chart
-#   entire.demo.chart[i, 2] = round(tmp.table[1, i]/entire.demo.chart["N", 1], 
-#                                   digits = 2)
-#   
-#   # place the number of patients in the current category that are in the control group in the chart
-#   entire.demo.chart[i, 3] = tmp.table[2, i]
-#   
-#   # place the sample proportion of patients in the current category that are in the control group in the chart
-#   entire.demo.chart[i, 4] = round(tmp.table[2, i]/entire.demo.chart["N", 3],
-#                                   digits = 2)
-#   
-#   
-# }
-# 
-# # place p-value from chi squared test for race in the chart
-# entire.demo.chart["ModRankinScore", 5] = round(tmp$p.value, digits = 3)
-# 
-# # re order chart to place modified rankin scores under modified rankin score
-# entire.demo.chart = entire.demo.chart[c(1:69, 76:81, 70:75), ]
-
 # Give the chart the correct format ####
 
 # modify gender variable
@@ -540,5 +506,5 @@ rownames(entire.demo.chart.final) = 1:dim(entire.demo.chart.final)[1]
 
 # Write chart to excel file ####
 write.csv(entire.demo.chart.final, 
-          "docs/Descriptive Chart No Matching 3-7-2018.csv",
+          "docs/Descriptive Chart No Matching 6-7-2018.csv",
           row.names = FALSE)

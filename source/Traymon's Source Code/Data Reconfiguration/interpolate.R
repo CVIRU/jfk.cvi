@@ -3,7 +3,7 @@
 #Author: Traymon Beavers                                                           #
 #Depends: upload data.R                                                            #
 #Date Created: 7/21/2017                                                           #
-#Date Updated: 9/15/2017                                                           #
+#Date Updated: 6/7/2018                                                            #
 #Purpose: To impute missing data in the stroke rehabiliation program using linear  # 
 #         interpolation                                                            #
 ####################################################################################
@@ -58,13 +58,13 @@ for (j in 1:length(NewMasterIDs)){
                                 Interpolate.Master[, "DaysId"] == DAYSID[i+1], 
                                 "PT.AM.PAC.Basic.Mobility.Score"]) == 1){
       
-      first=c(first, DAYSID[i])
+      first = c(first, DAYSID[i])
       
     }
     
   }
   
-  #delete the initial 0
+  # delete the initial 0
   first = first[-1]
   
   # create a vector called last to store every DaysId for which the previous DaysId has a missing observation ####
@@ -90,7 +90,7 @@ for (j in 1:length(NewMasterIDs)){
     
   }
   
-  #delete the 0
+  # delete the 0
   last = last[-1]
   
   # perform interpolation ####
@@ -151,8 +151,9 @@ for (j in 1:length(NewMasterIDs)){
         #replace missing values with the interpolated value
         Interpolate.Master[Interpolate.Master[, "ID"] == NewMasterIDs[j] & 
                              Interpolate.Master[, "DaysId"] == DAYSID[which(DAYSID == first[k]) + i], 
-                           c("PT.AM.PAC.Basic.Mobility.Score", "OT.AM.Daily.Activity.Score", "ST.AM.Applied.Cogn.Score")]=
+                           c("PT.AM.PAC.Basic.Mobility.Score", "OT.AM.Daily.Activity.Score", "ST.AM.Applied.Cogn.Score")] =
           c((y1m + i*mobility.slope), (y1a + i*activity.slope), (y1c + i*cognitive.slope))
+        
       }
       
     }
@@ -161,7 +162,7 @@ for (j in 1:length(NewMasterIDs)){
   
 }
 
-# # Check that the interpolation worked as intended ####
+# Check that the interpolation worked as intended ####
 # View(NewMaster[,c("ID",
 #                   "DaysId",
 #                   "PT.AM.PAC.Basic.Mobility.Score",
@@ -232,6 +233,7 @@ rm(activity.slope,
    i,
    j,
    k,
+   C,
    last,
    mobility.slope,
    y1a,

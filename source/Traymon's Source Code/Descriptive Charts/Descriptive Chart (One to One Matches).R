@@ -3,7 +3,7 @@
 #Author: Traymon Beavers                                                           #
 #Depends: create matches.R                                                         #
 #Date Created: 7/21/2017                                                           #
-#Date Updated: 3/7/2018                                                            #
+#Date Updated: 6/7/2018                                                            #
 #Purpose: To create and save a descriptive chart comparing the study group and     #
 #         control group patients; sample of one to one matches                     #
 ####################################################################################
@@ -14,20 +14,20 @@ source("source/Traymon's Source Code/Analysis/create matches.R")
 # Initialize the descriptive chart ####
 
 for.names = colnames(match.subgroup.One)[c(2:3,
-                                               8:9,
-                                               11:12,
-                                               16:23,
-                                               29:30,
-                                               33,
-                                               36:43,
-                                               46:48,
-                                               50:55,
-                                               57:61,
-                                               63:64,
-                                               66:67,
-                                               75:79,
-                                               113,
-                                               115:120)]
+                                           8:9,
+                                           11:12,
+                                           16:23,
+                                           29:30,
+                                           33,
+                                           36:43,
+                                           46:48,
+                                           50:55,
+                                           57:61,
+                                           63:64,
+                                           66:67,
+                                           75:79,
+                                           113,
+                                           115:120)]
 
 # initialize the descriptive chart
 matched.demo.chart = as.data.frame(matrix(NA,
@@ -122,15 +122,15 @@ for (i in cont.list[c(1:12,18:23)]){
 for (i in cont.list[c(13:17)]){
   
   # conduct a two sample t test for the current variable
-  tmp = t.test(Interpolate.Master[Interpolate.Master[, "ID"] %in% StudyGroupIDs & Interpolate.Master[,"DaysId"] == 1, i],
-               Interpolate.Master[Interpolate.Master[, "ID"] %in% ControlGroupIDs & Interpolate.Master[,"DaysId"] == 1, i])
+  tmp = t.test(Interpolate.Master[Interpolate.Master[, "ID"] %in% intersect(StudyGroupIDs, match.subgroup.One[,"ID"]) & Interpolate.Master[,"DaysId"] == 1, i],
+               Interpolate.Master[Interpolate.Master[, "ID"] %in% intersect(ControlGroupIDs, match.subgroup.One[,"ID"]) & Interpolate.Master[,"DaysId"] == 1, i])
   
   # place the sample mean for the study group in the chart
   matched.demo.chart[i, 1] = round(tmp$estimate[1],
                                   digits = 1)
   
   # place the sample standard deviation for the study group in the chart
-  matched.demo.chart[i, 2] = round(sqrt(var(Interpolate.Master[Interpolate.Master[, "ID"] %in% StudyGroupIDs & Interpolate.Master[,"DaysId"] == 1, i], 
+  matched.demo.chart[i, 2] = round(sqrt(var(Interpolate.Master[Interpolate.Master[, "ID"] %in% intersect(StudyGroupIDs, match.subgroup.One[,"ID"]) & Interpolate.Master[,"DaysId"] == 1, i], 
                                            na.rm = TRUE)), 
                                   digits = 1)
   
@@ -139,7 +139,7 @@ for (i in cont.list[c(13:17)]){
                                   digits = 1)
   
   # place the sample standard deviation for the study group in the chart
-  matched.demo.chart[i, 4] = round(sqrt(var(Interpolate.Master[Interpolate.Master[, "ID"] %in% ControlGroupIDs & Interpolate.Master[,"DaysId"] == 1, i], 
+  matched.demo.chart[i, 4] = round(sqrt(var(Interpolate.Master[Interpolate.Master[, "ID"] %in% intersect(ControlGroupIDs, match.subgroup.One[,"ID"]) & Interpolate.Master[,"DaysId"] == 1, i], 
                                            na.rm = TRUE)), 
                                   digits = 1)
   
@@ -540,5 +540,5 @@ rownames(matched.demo.chart.final) = 1:dim(matched.demo.chart.final)[1]
 
 # Write chart to excel file ####
 write.csv(matched.demo.chart.final, 
-          "docs/Descriptive Chart After Matching 3-8-2018.csv",
+          "docs/Descriptive Chart After Matching 6-7-2018.csv",
           row.names = FALSE)

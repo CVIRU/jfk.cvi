@@ -3,7 +3,7 @@
 #Author: Traymon Beavers                                                           #
 #Depends: upload data.R, interpolate.R, matching.R, final matching.R               #
 #Date Created: 7/21/2017                                                           #
-#Date Updated: 3/7/2018                                                            #
+#Date Updated: 6/7/2018                                                            #
 #Purpose: To find, create, and extract the set of matches which contains the most  #
 #         patients, the least missing data, and the most deceased patient          #
 ####################################################################################
@@ -93,6 +93,15 @@
 # maximum is 74, 1050, and 11                                  #
 # SWEET SPOT                                                   #
 ################################################################
+################################################################
+# (5, 15, 15, 15, 1, 1) yields 76 out of 136 study ID matches  #
+# with seed 912:                                               #
+# 66 unique controls out of an original 149                    #
+# 933 nonmissing obs                                           #
+# 11 deceased patients out of an original 18                   #
+# maximum is 66, 936, and 12                                   #
+# MOST RECENT SWEET SPOT                                       #
+################################################################
 
 # Load the necessary source code and functions ####
 source("source/Traymon's Source Code/Data Reconfiguration/interpolate.R")
@@ -106,8 +115,7 @@ matchrows = matching(AgeNum = 5,
                      DischargeMobNum = 15,
                      DischargeActNum = 15,
                      DischargeCogNum = 15,
-                     PScoreNum = 1,
-                     FacAdjNum = 2)
+                     FacAdjNum = 1)
 
 # # count the number of unique patients in the subset of matched patients
 # length(unique(matchrows[matchrows[, "Group"] == 1, "ID"]))
@@ -117,8 +125,8 @@ matchrows = matching(AgeNum = 5,
 # sum(NewMaster.One[NewMaster.One[,"ID"] %in% unique(matchrows[matchrows[, "Group"] == 1, "ID"]), "Deceased_Y.N"])
 # sum(NewMaster.One[NewMaster.One[,"ID"] %in% unique(matchrows[matchrows[, "Group"] == 0, "ID"]), "Deceased_Y.N"])
 # 
-# control.thresh = 73
-# death.thresh = 8
+# control.thresh = 65
+# death.thresh = 10
 # 
 # # Find the seed that optimizes the set of one to one matches ####
 # 
@@ -207,12 +215,12 @@ matchrows = matching(AgeNum = 5,
 # max(NA.Num)
 # max(UC.Num)
 # max(DC.Num)
-#
+
 # Create the matches and extract the data for all patients in the set of one to one matches ####
 
 # create the matches
 matchrow.final = final.matching(Matchrows = matchrows,
-                                Match.seed = 946)
+                                Match.seed = 912)
 
 # extract the data
 match.subgroup = Interpolate.Master[Interpolate.Master[,"ID"] %in% matchrow.final[, "ID"], ]

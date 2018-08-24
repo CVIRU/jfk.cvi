@@ -185,7 +185,7 @@ tmp.table[2,2] = sum(modrankin.data[modrankin.data[,"Group"] == "Control Group" 
                                       modrankin.data[,"DaysId"] == 3, "Number"]) - tmp.table[2,1]
 
 
-prop.test(tmp.table)
+test1 = prop.test(tmp.table)
 
 # conduct a two sample Z-test for daysid = 5
 tmp.table[1,1] = sum(modrankin.data[modrankin.data[,"Group"] == "Study Group" &
@@ -205,7 +205,7 @@ tmp.table[2,2] = sum(modrankin.data[modrankin.data[,"Group"] == "Control Group" 
                                       modrankin.data[,"DaysId"] == 5, "Number"]) - tmp.table[2,1]
 
 
-prop.test(tmp.table)
+test2 = prop.test(tmp.table)
 
 # conduct a two sample Z-test for daysid = 6
 tmp.table[1,1] = sum(modrankin.data[modrankin.data[,"Group"] == "Study Group" &
@@ -225,7 +225,7 @@ tmp.table[2,2] = sum(modrankin.data[modrankin.data[,"Group"] == "Control Group" 
                                       modrankin.data[,"DaysId"] == 6, "Number"]) - tmp.table[2,1]
 
 
-prop.test(tmp.table)
+test3 = prop.test(tmp.table)
 
 # Create stacked bar graph plot (no color) ####
 
@@ -299,9 +299,9 @@ ggplot(data = modrankin.data[modrankin.data[, "Follow.Up.Id"] != "180 Day" &
     geom_text(data = data.frame(Follow.Up.Id = c("30 Day",
                                                  "90 Day",
                                                  "120 Day"),
-                                label = c("P-Value = <0.001",
-                                          "P-Value = 0.058",
-                                          "P-Value = 0.014")),
+                                label = c(paste("P-Value", round(test1$p.value,3), sep = " = "),
+                                          paste("P-Value", round(test2$p.value,3), sep = " = "),
+                                          paste("P-Value", round(test3$p.value,3), sep = " = "))),
               aes(x = 1.5, y = 1.05, label = label),
               inherit.aes = FALSE) +
   scale_fill_manual(name = "Modified Rankin Scale Score",
@@ -312,7 +312,50 @@ ggplot(data = modrankin.data[modrankin.data[, "Follow.Up.Id"] != "180 Day" &
                                    hjust = 1),
         legend.position = "top")
 
-ggsave("media/Modified Rankin Score/Mod Rankin Score Stacked Bar Graph (After Matching) (3-21-2018).tiff",
+ggsave("media/Modified Rankin Score/Mod Rankin Score Stacked Bar Graph (After Matching) (6-8-2018).tiff",
+       device = "tiff",
+       width = 8.25,
+       height = 6,
+       dpi = 300,
+       compression = "lzw")
+
+# create plot without 30 day time point
+ggplot(data = modrankin.data[modrankin.data[, "Follow.Up.Id"] != "30 Day" &
+                               modrankin.data[, "Follow.Up.Id"] != "180 Day" &
+                               modrankin.data[, "Follow.Up.Id"] != "365 Day", ],
+       aes(x = Group,
+           y = Percent,
+           fill = Score,
+           label = Percent)) +
+  facet_wrap(~Follow.Up.Id,
+             nrow = 1) +
+  scale_x_discrete("Rehabilitation Group") +
+  scale_y_continuous("Percent of Patients with Score",
+                     labels = paste(seq(0,100,25))) +
+  ggtitle("Modified Rankin Scale Score") +
+  geom_bar(stat = "identity", position = "fill") +
+  geom_segment(data = for.lines[for.lines[, "Follow.Up.Id"] != "30 Day", ],
+               aes(x = x1,
+                   xend = x2,
+                   y = high.prop,
+                   yend = high.prop),
+               inherit.aes = FALSE,
+               lwd = 1.25) +
+  geom_text(data = data.frame(Follow.Up.Id = c("90 Day",
+                                               "120 Day"),
+                              label = c("P-Value = 0.058",
+                                        "P-Value = 0.014")),
+            aes(x = 1.5, y = 1.05, label = label),
+            inherit.aes = FALSE) +
+  scale_fill_manual(name = "Modified Rankin Scale Score",
+                    values = gray.colors(6, end = 0.8)) +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5),
+        axis.text.x = element_text(angle = 30,
+                                   hjust = 1),
+        legend.position = "top")
+
+ggsave("media/Modified Rankin Score/Mod Rankin Score Stacked Bar Graph (After Matching) (No 30 Day) (4-22-2018).tiff",
        device = "tiff",
        width = 8.25,
        height = 6,

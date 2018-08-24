@@ -4,7 +4,7 @@
 #Depends: create matches.R, follow up analysis.R, lmer analysis.R, ggplot2,        # 
 #         lmerTest, gridExtra, data.table                                          #
 #Date Created: 7/21/2017                                                           #
-#Date Updated: 3/21/2018                                                           #
+#Date Updated: 6/25/2018                                                           #
 #Purpose: To perform analysis on the stroke rehabilitation program functional      #
 #         outcome data by matching patients in the study group with patients in    #
 #         the control group and then conducting various statistical procedures     #
@@ -13,10 +13,10 @@
 ####################################################################################
 
 # Load the necessary source code, functions, and packages ####
-source("source/Traymon's Source Code/Analysis/create matches.R")
-source("source/Traymon's Source Code/Functions/Analysis Functions/follow up analysis.R")
-source("source/Traymon's Source Code/Functions/Analysis Functions/lmer analysis.R")
-# source("source/Traymon's Source Code/Data Reconfiguration/interpolate.R")
+# source("source/Traymon's Source Code/Analysis/create matches.R")
+# source("source/Traymon's Source Code/Functions/Analysis Functions/follow up analysis.R")
+# source("source/Traymon's Source Code/Functions/Analysis Functions/lmer analysis.R")
+source("source/Traymon's Source Code/Data Reconfiguration/interpolate.R")
 library(ggplot2)
 library(gridExtra)
 library(data.table)
@@ -154,128 +154,9 @@ ggplot(data = tmp2,
   geom_text(data = data.frame(Score.Type = c("Basic Mobility",
                                              "Daily Activity",
                                              "Applied Cognitive"),
-                              label = rep("P < 0.001", 3)),
-            aes(x = 4,
-                y = 32.5,
-                label = label),
-            inherit.aes = FALSE,
-            size = 5) +
-  ggtitle(expression("Average" ~ AM-PAC^{TM} ~ "Score by Follow Up Time Point")) +
-  geom_line() +
-  geom_point(aes(x = DaysId,
-                 y = Score,
-                 shape = shape.ggplot),
-             fill = "black",
-             size = 3) +
-  scale_shape_manual("",
-                     values = c(15,
-                                16,
-                                17,
-                                8),
-                     labels = c("Admission",
-                                "Discharge",
-                                "Non-participant",
-                                "SRP participant")) +
-  scale_x_discrete("Follow Up Time Point",
-                   limits = c("Admission",
-                              "Discharge",
-                              "30 Day",
-                              "60 Day",
-                              "90 Day",
-                              "120 Day")) +
-  scale_y_continuous(expression(AM-PAC^{TM} ~ "Score"),
-                     limits = c(25, 65)) +
-  theme(legend.position = "top",
-        plot.title = element_text(hjust = 0.5),
-        axis.text.x = element_text(angle = 45,
-                                   hjust = 1))
-
-# save the plot
-ggsave("media/Functional Outcomes/AM PAC Average Line Graphs (After Matching) (no color) (3-9-2018).tiff",
-       device = "tiff",
-       width = 10,
-       height = 5,
-       dpi = 300,
-       compression = "lzw")
-
-# create line plot
-ggplot(data = tmp2,
-       aes(x = DaysId,
-           y = Score,
-           group = Group)) +
-  facet_wrap(~Score.Type, nrow = 1) +
-  geom_text(data = data.frame(Score.Type = c("Basic Mobility",
-                                             "Daily Activity",
-                                             "Applied Cognitive"),
-                              label = c("(7.09,10.69)",
-                                        "(7.46,11.85)",
-                                        "(3.50,9.93)")),
-            aes(x = 4.25,
-                y = 32.5,
-                label = label),
-            inherit.aes = FALSE,
-            size = 5) +
-  geom_text(data = data.frame(Score.Type = c("Basic Mobility",
-                                             "Daily Activity",
-                                             "Applied Cognitive"),
-                              label = c("95% CI",
-                                        "95% CI",
-                                        "95% CI")),
-            aes(x = 4.25,
-                y = 35.5,
-                label = label),
-            inherit.aes = FALSE,
-            size = 5) +
-  ggtitle(expression("Average" ~ AM-PAC^{TM} ~ "Score by Follow Up Time Point")) +
-  geom_line() +
-  geom_point(aes(x = DaysId,
-                 y = Score,
-                 shape = shape.ggplot),
-             fill = "black",
-             size = 3) +
-  scale_shape_manual("",
-                     values = c(15,
-                                16,
-                                17,
-                                8),
-                     labels = c("Admission",
-                                "Discharge",
-                                "Non-participant",
-                                "SRP participant")) +
-  scale_x_discrete("Follow Up Time Point",
-                   limits = c("Admission",
-                              "Discharge",
-                              "30 Day",
-                              "60 Day",
-                              "90 Day",
-                              "120 Day")) +
-  scale_y_continuous(expression(AM-PAC^{TM} ~ "Score"),
-                     limits = c(25, 65)) +
-  theme(legend.position = "top",
-        plot.title = element_text(hjust = 0.5),
-        axis.text.x = element_text(angle = 45,
-                                   hjust = 1))
-
-# save the plot
-ggsave("media/Functional Outcomes/AM PAC Average Line Graphs (After Matching) (no color, CI) (3-20-2018).tiff",
-       device = "tiff",
-       width = 10,
-       height = 5,
-       dpi = 300,
-       compression = "lzw")
-
-# create line plot
-ggplot(data = tmp2,
-       aes(x = DaysId,
-           y = Score,
-           group = Group)) +
-  facet_wrap(~Score.Type, nrow = 1) +
-  geom_text(data = data.frame(Score.Type = c("Basic Mobility",
-                                             "Daily Activity",
-                                             "Applied Cognitive"),
-                              label = c("(7.09,10.69)",
-                                        "(7.46,11.85)",
-                                        "(3.50,9.93)")),
+                              label = c("(6.35,9.86)",
+                                        "(5.71,10.1)",
+                                        "(3.61,7.26)")),
             aes(x = 4.25,
                 y = 29.5,
                 label = label),
@@ -335,7 +216,7 @@ ggplot(data = tmp2,
                                    hjust = 1))
 
 # save the plot
-ggsave("media/Functional Outcomes/AM PAC Average Line Graphs (After Matching) (no color, P & CI) (3-21-2018).tiff",
+ggsave("media/Functional Outcomes/AM PAC Average Line Graphs (After Matching) (no color, P & CI) (6-8-2018).tiff",
        device = "tiff",
        width = 10,
        height = 5,
@@ -358,13 +239,16 @@ for (i in 1:3){
 
 }
 
+follow.up.analysis(ScoreNum = 3, 
+                   FollowUpNum = 6)
+
 # Conduct mixed effects linear model analysis for each score ####
 
 # cycle through the different functional outcomes
 for (i in 1:3){
 
   # cycle through different choices for fixed effects
-  for (j in 1){
+  for (j in c(1,4)){
 
     # fit a mixed effects linear model
     results = lmer.analysis(ScoreNum = i,
@@ -416,6 +300,88 @@ for (i in 1:3){
 
 }
 
+for.P.val.plot = data.frame(Variables = names(for.p.val.plot.mob),
+                            Mobility = for.p.val.plot.mob,
+                            Activity = for.p.val.plot.act,
+                            Cognitive = for.p.val.plot.cog)
+
+# save the dataset as a csv file
+write.csv(for.P.val.plot,
+          "media/Functional Outcomes/Data Tables/P Value Plot Data.csv",
+          row.names = FALSE)
+
+results = lmer.analysis(ScoreNum = 3,
+                        Choice = 1)
+
+summary(results)
+
+# Conduct analysis with no matching ####
+
+Study.Data = Interpolate.Master[Interpolate.Master[,"ID"] %in% StudyGroupIDs, ]
+
+Study.Data.120 = Study.Data[Study.Data[, "DaysId"] == 6, ]
+
+mob.data = Study.Data.120[, "PT.AM.PAC.Basic.Mobility.Score"] - Study.Data.120[, "Discharge.Mobility"]
+
+mob.data = mob.data[!is.na(mob.data)]
+
+t.test(mob.data)
+
+act.data = Study.Data.120[, "OT.AM.Daily.Activity.Score"] - Study.Data.120[, "Discharge.Activity"]
+
+act.data = act.data[!is.na(act.data)]
+
+t.test(act.data)
+
+cog.data = Study.Data.120[, "ST.AM.Applied.Cogn.Score"] - Study.Data.120[, "Discharge.Cognitive"]
+
+cog.data = cog.data[!is.na(cog.data)]
+
+t.test(cog.data)
+
+AMPAC.Mean.Table = data.frame(TimePoint = c("Admission",
+                                            "Discharge",
+                                            "30 Days",
+                                            "60 Days",
+                                            "90 Days",
+                                            "120 Days"),
+                              SampleSize = rep(0,6),
+                              Mobility = rep(0,6),
+                              Activity = rep(0,6),
+                              Cognitive = rep(0,6))
+
+AMPAC.Mean.Table[1,2] = sum(!is.na(Study.Data[Study.Data[, "DaysId"] == 1, "Admission.Mobility"]))
+AMPAC.Mean.Table[2,2] = sum(!is.na(Study.Data[Study.Data[, "DaysId"] == 2, "Discharge.Mobility"]))
+AMPAC.Mean.Table[3,2] = sum(!is.na(Study.Data[Study.Data[, "DaysId"] == 3, "PT.AM.PAC.Basic.Mobility.Score"]))
+AMPAC.Mean.Table[4,2] = sum(!is.na(Study.Data[Study.Data[, "DaysId"] == 4, "PT.AM.PAC.Basic.Mobility.Score"]))
+AMPAC.Mean.Table[5,2] = sum(!is.na(Study.Data[Study.Data[, "DaysId"] == 5, "PT.AM.PAC.Basic.Mobility.Score"]))
+AMPAC.Mean.Table[6,2] = sum(!is.na(Study.Data[Study.Data[, "DaysId"] == 6, "PT.AM.PAC.Basic.Mobility.Score"]))
+
+AMPAC.Mean.Table[1,3] = mean(Study.Data[Study.Data[, "DaysId"] == 1, "Admission.Mobility"], na.rm = TRUE)
+AMPAC.Mean.Table[2,3] = mean(Study.Data[Study.Data[, "DaysId"] == 2, "Discharge.Mobility"], na.rm = TRUE)
+AMPAC.Mean.Table[3,3] = mean(Study.Data[Study.Data[, "DaysId"] == 3, "PT.AM.PAC.Basic.Mobility.Score"], na.rm = TRUE)
+AMPAC.Mean.Table[4,3] = mean(Study.Data[Study.Data[, "DaysId"] == 4, "PT.AM.PAC.Basic.Mobility.Score"], na.rm = TRUE)
+AMPAC.Mean.Table[5,3] = mean(Study.Data[Study.Data[, "DaysId"] == 5, "PT.AM.PAC.Basic.Mobility.Score"], na.rm = TRUE)
+AMPAC.Mean.Table[6,3] = mean(Study.Data[Study.Data[, "DaysId"] == 6, "PT.AM.PAC.Basic.Mobility.Score"], na.rm = TRUE)
+
+AMPAC.Mean.Table[1,4] = mean(Study.Data[Study.Data[, "DaysId"] == 1, "Admission.Activity"], na.rm = TRUE)
+AMPAC.Mean.Table[2,4] = mean(Study.Data[Study.Data[, "DaysId"] == 2, "Discharge.Activity"], na.rm = TRUE)
+AMPAC.Mean.Table[3,4] = mean(Study.Data[Study.Data[, "DaysId"] == 3, "OT.AM.Daily.Activity.Score"], na.rm = TRUE)
+AMPAC.Mean.Table[4,4] = mean(Study.Data[Study.Data[, "DaysId"] == 4, "OT.AM.Daily.Activity.Score"], na.rm = TRUE)
+AMPAC.Mean.Table[5,4] = mean(Study.Data[Study.Data[, "DaysId"] == 5, "OT.AM.Daily.Activity.Score"], na.rm = TRUE)
+AMPAC.Mean.Table[6,4] = mean(Study.Data[Study.Data[, "DaysId"] == 6, "OT.AM.Daily.Activity.Score"], na.rm = TRUE)
+
+AMPAC.Mean.Table[1,5] = mean(Study.Data[Study.Data[, "DaysId"] == 1, "Admission.Cognitive"], na.rm = TRUE)
+AMPAC.Mean.Table[2,5] = mean(Study.Data[Study.Data[, "DaysId"] == 2, "Discharge.Cognitive"], na.rm = TRUE)
+AMPAC.Mean.Table[3,5] = mean(Study.Data[Study.Data[, "DaysId"] == 3, "ST.AM.Applied.Cogn.Score"], na.rm = TRUE)
+AMPAC.Mean.Table[4,5] = mean(Study.Data[Study.Data[, "DaysId"] == 4, "ST.AM.Applied.Cogn.Score"], na.rm = TRUE)
+AMPAC.Mean.Table[5,5] = mean(Study.Data[Study.Data[, "DaysId"] == 5, "ST.AM.Applied.Cogn.Score"], na.rm = TRUE)
+AMPAC.Mean.Table[6,5] = mean(Study.Data[Study.Data[, "DaysId"] == 6, "ST.AM.Applied.Cogn.Score"], na.rm = TRUE)
+
+
+write.csv(AMPAC.Mean.Table,
+          "docs/AMPAC_Mean_Table.csv",
+          row.names = FALSE)
 
 # OBSOLETE CODE ####
 # # Create line plot for each score (No Matching) (no color) ####

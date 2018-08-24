@@ -36,18 +36,16 @@ lmer.analysis = function(AgeNum = 5,
                          DischargeMobNum = 15, 
                          DischargeActNum = 15, 
                          DischargeCogNum = 15,
-                         PScoreNum = 1,
-                         FacAdjNum = 2,
+                         FacAdjNum = 1,
                          ScoreNum = 1, 
                          Choice = 1,
-                         Match.seed = 946){
+                         Match.seed = 912){
   
   # create matches
   matchrows = matching(AgeNum = AgeNum , 
                        DischargeMobNum = DischargeMobNum, 
                        DischargeActNum = DischargeActNum, 
                        DischargeCogNum = DischargeCogNum, 
-                       PScoreNum = PScoreNum, 
                        FacAdjNum = FacAdjNum)
   
   # creation of unique (up to Study ID) one to one matched patients  

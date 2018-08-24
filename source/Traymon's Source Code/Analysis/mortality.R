@@ -3,7 +3,7 @@
 #Author: Traymon Beavers                                                           #
 #Depends: create matches.R, ggplot2, lmerTest, gridExtra, survival, data.table     #
 #Date Created: 7/21/2017                                                           #
-#Date Updated: 3/21/2018                                                           #
+#Date Updated: 6/7/2018                                                            #
 #Purpose: To perform analysis on the stroke rehabilitation program mortality data  #
 #         by matching patients in the study group with patients in the control     #
 #         group and then conducting various statistical procedures with respect to #
@@ -16,7 +16,6 @@
 
 # Load the necessary source code and functions ####
 source("source/Traymon's Source Code/Analysis/create matches.R")
-# source("source/Traymon's Source Code/Data Reconfiguration/interpolate.R")
 library(ggplot2)
 library(gridExtra)
 library(survival)
@@ -162,17 +161,17 @@ tmp.sf = survfit(Surv(tmp[, "Survival.Time"],
 #        compression = "lzw")
 
 tmp.data2 = data.table(Time = c(0,
-                                tmp.sf$time[1:9],
+                                tmp.sf$time[1:tmp.sf$strata[1]],
                                 0,
-                                tmp.sf$time[10:12],
-                                tmp.sf$time[9]),
+                                tmp.sf$time[(tmp.sf$strata[1]+1):(tmp.sf$strata[1] + tmp.sf$strata[2])],
+                                tmp.sf$time[tmp.sf$strata[1]]),
                        Surv.Prob = c(1,
-                                     tmp.sf$surv[1:9],
+                                     tmp.sf$surv[1:tmp.sf$strata[1]],
                                      1,
-                                     tmp.sf$surv[10:12],
-                                     tmp.sf$surv[12]),
-                       Group = c(rep("Non-participant Group", 10),
-                                 rep("SRP Participant Group", 5)))
+                                     tmp.sf$surv[(tmp.sf$strata[1]+1):(tmp.sf$strata[1] + tmp.sf$strata[2])],
+                                     tmp.sf$surv[(tmp.sf$strata[1] + tmp.sf$strata[2])]),
+                       Group = c(rep("Non-participant Group", tmp.sf$strata[1]+1),
+                                 rep("SRP Participant Group", tmp.sf$strata[2]+2)))
 
 ggplot(tmp.data2,
        aes(x = Time,
@@ -181,88 +180,91 @@ ggplot(tmp.data2,
   geom_step(aes(linetype = Group)) +
   scale_x_continuous("Days After Stroke") +
   scale_y_continuous("Probability of Survival",
-                     limits = c(.875, 1)) +
+                     limits = c(.86, 1)) +
   scale_linetype_manual(values = c("dashed", "solid"),
                         labels = c("Non-participant", "SRP Participant")) +
-  geom_text(x = 50, 
-            y = 0.925, 
-            label = "P = 0.018",
+  geom_text(x = 50,
+            y = 0.925,
+            label = "P = 0.015",
             size = 5) +
   ggtitle("Survival Curves for All-Cause Mortality by Rehabilitation Group") +
   theme(plot.title = element_text(hjust = 0.5),
         legend.position = "top")
 
-ggsave("media/Mortality/Survival Curve (After Matching) 3-9-2018.tiff", 
+ggsave("media/Mortality/Survival Curve (After Matching) 6-8-2018.tiff", 
        device = "tiff",
        width = 8,
        height = 5, 
        dpi = 300,
        compression = "lzw")
 
-ggplot(tmp.data2,
-       aes(x = Time,
-           y = Surv.Prob,
-           group = Group)) +
-  geom_step(aes(linetype = Group)) +
-  scale_x_continuous("Days After Stroke") +
-  scale_y_continuous("Probability of Survival",
-                     limits = c(.875, 1)) +
-  scale_linetype_manual(values = c("dashed", "solid"),
-                        labels = c("Non-participant", "SRP Participant")) +
-  geom_text(x = 100, 
-            y = 0.92, 
-            label = "95% CI",
-            size = 5) +
-  geom_text(x = 100, 
-            y = 0.91, 
-            label = "(16.17,43.31)",
-            size = 5) +
-  ggtitle("Survival Curves for All-Cause Mortality by Rehabilitation Group") +
-  theme(plot.title = element_text(hjust = 0.5),
-        legend.position = "top")
-
-ggsave("media/Mortality/Survival Curve (After Matching, CI) 3-20-2018.tiff", 
-       device = "tiff",
-       width = 8,
-       height = 5, 
-       dpi = 300,
-       compression = "lzw")
-
-ggplot(tmp.data2,
-       aes(x = Time,
-           y = Surv.Prob,
-           group = Group)) +
-  geom_step(aes(linetype = Group)) +
-  scale_x_continuous("Days After Stroke") +
-  scale_y_continuous("Probability of Survival",
-                     limits = c(.875, 1)) +
-  scale_linetype_manual(values = c("dashed", "solid"),
-                        labels = c("Non-participant", "SRP-participant")) +
-  geom_text(x = 100, 
-            y = 0.91, 
-            label = "P = 0.018",
-            size = 5) +  
-  geom_text(x = 100, 
-            y = 0.9, 
-            label = "95% CI",
-            size = 5) +
-  geom_text(x = 100, 
-            y = 0.89, 
-            label = "(16.17,43.31)",
-            size = 5) +
-  ggtitle("Survival Curves for All-Cause Mortality by Rehabilitation Group") +
-  theme(plot.title = element_text(hjust = 0.5),
-        legend.position = "top")
-
-ggsave("media/Mortality/Survival Curve (After Matching, P & CI) 3-21-2018.tiff", 
-       device = "tiff",
-       width = 8,
-       height = 5, 
-       dpi = 300,
-       compression = "lzw")
+# ggplot(tmp.data2,
+#        aes(x = Time,
+#            y = Surv.Prob,
+#            group = Group)) +
+#   geom_step(aes(linetype = Group)) +
+#   scale_x_continuous("Days After Stroke") +
+#   scale_y_continuous("Probability of Survival",
+#                      limits = c(.875, 1)) +
+#   scale_linetype_manual(values = c("dashed", "solid"),
+#                         labels = c("Non-participant", "SRP Participant")) +
+#   geom_text(x = 100, 
+#             y = 0.92, 
+#             label = "95% CI",
+#             size = 5) +
+#   geom_text(x = 100, 
+#             y = 0.91, 
+#             label = "(16.17,43.31)",
+#             size = 5) +
+#   ggtitle("Survival Curves for All-Cause Mortality by Rehabilitation Group") +
+#   theme(plot.title = element_text(hjust = 0.5),
+#         legend.position = "top")
+# 
+# ggsave("media/Mortality/Survival Curve (After Matching, CI) 3-20-2018.tiff", 
+#        device = "tiff",
+#        width = 8,
+#        height = 5, 
+#        dpi = 300,
+#        compression = "lzw")
+# 
+# ggplot(tmp.data2,
+#        aes(x = Time,
+#            y = Surv.Prob,
+#            group = Group)) +
+#   geom_step(aes(linetype = Group)) +
+#   scale_x_continuous("Days After Stroke") +
+#   scale_y_continuous("Probability of Survival",
+#                      limits = c(.875, 1)) +
+#   scale_linetype_manual(values = c("dashed", "solid"),
+#                         labels = c("Non-participant", "SRP-participant")) +
+#   geom_text(x = 100, 
+#             y = 0.91, 
+#             label = "P = 0.018",
+#             size = 5) +  
+#   geom_text(x = 100, 
+#             y = 0.9, 
+#             label = "95% CI",
+#             size = 5) +
+#   geom_text(x = 100, 
+#             y = 0.89, 
+#             label = "(16.17,43.31)",
+#             size = 5) +
+#   ggtitle("Survival Curves for All-Cause Mortality by Rehabilitation Group") +
+#   theme(plot.title = element_text(hjust = 0.5),
+#         legend.position = "top")
+# 
+# ggsave("media/Mortality/Survival Curve (After Matching, P & CI) 3-21-2018.tiff", 
+#        device = "tiff",
+#        width = 8,
+#        height = 5, 
+#        dpi = 300,
+#        compression = "lzw")
 
 
 # Calculate hazard ratios ####
+
+tmp[,"Group"] = relevel(tmp[,"Group"],
+                        ref = "Study Group")
 
 cox.fit = coxph(Surv(tmp[, "Survival.Time"], 
                      tmp[, "Deceased_Y.N"]) ~ Group,
@@ -270,7 +272,29 @@ cox.fit = coxph(Surv(tmp[, "Survival.Time"],
 
 cox.sum = summary(cox.fit)
 
-# Fit Cox proportional hazards models with glmnet for each group separately
+cox.sum$coefficients
+
+# Calculate odds ratios ####
+word = table(mortality.data[,"Group"],
+             mortality.data[,"Deceased_Y.N"])[c(1,2),c(2,1)]
+
+OR = (word[1,1]/word[1,2])/(word[2,1]/word[2,2])
+
+SE = sqrt((1/word[1,1]) + (1/word[2,1]) + (1/word[1,2]) + (1/word[2,2]))
+
+OR
+SE
+2*pnorm(log(OR)/SE, lower.tail = FALSE)
+
+word = glm(Deceased_Y.N ~ Group,
+           family = binomial,
+           data = tmp)
+
+word$coefficients
+
+exp(word$coefficients[2])
+
+
 # # SRP Participant Group ####
 # tmp.delete = -c(1,4:7,10,12:15,24:28,30:44,68:112,114:125)
 # 

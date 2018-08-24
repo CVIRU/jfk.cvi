@@ -30,18 +30,16 @@ follow.up.analysis = function(AgeNum = 5,
                               DischargeMobNum = 15, 
                               DischargeActNum = 15, 
                               DischargeCogNum = 15,
-                              PScoreNum = 1,
-                              FacAdjNum = 2,
+                              FacAdjNum = 1,
                               ScoreNum = 1, 
                               FollowUpNum = 4,
-                              Match.seed = 946){
+                              Match.seed = 912){
   
   # create the matched pairs
   matchrows = matching(AgeNum = AgeNum, 
                        DischargeMobNum = DischargeMobNum, 
                        DischargeActNum = DischargeActNum, 
                        DischargeCogNum = DischargeCogNum, 
-                       PScoreNum = PScoreNum, 
                        FacAdjNum = FacAdjNum)
   
   # create the unique (up to Study ID) one to one matched patients
@@ -90,7 +88,7 @@ follow.up.analysis = function(AgeNum = 5,
   drop.pair.IDs = drop.pair.IDs[-1]
   
   # check if any patients need to be removed before analysis
-  if (length(drop.pair.IDs)>0){
+  if (length(drop.pair.IDs) > 0){
     
     #cycle through the list of patients that need to be removed before analysis and remove them
     for (j in 1:length(drop.pair.IDs)){
@@ -102,11 +100,11 @@ follow.up.analysis = function(AgeNum = 5,
   }
   
   # provide column names for the dataset created for analysis
-  colnames(Analysis.Data)=c("PairID", 
-                            "ID", 
-                            "Group", 
-                            "Score", 
-                            "Discharge")
+  colnames(Analysis.Data) = c("PairID", 
+                              "ID", 
+                              "Group", 
+                              "Score", 
+                              "Discharge")
   
   # create the vector to be used for a paired t-test ####
   
@@ -115,7 +113,7 @@ follow.up.analysis = function(AgeNum = 5,
   
   # cycle through the matched pairs and calculate their difference from baseline and then 
   # the treatment effect for that pair and add it to the vector for test data
-  for (k in unique(Analysis.Data[,"PairID"])){
+  for (k in unique(Analysis.Data[, "PairID"])){
     
     test.data = c(test.data, (Analysis.Data[Analysis.Data[, "PairID"] == k & Analysis.Data[, "Group"] == 1, "Score"] - 
                                 Analysis.Data[Analysis.Data[, "PairID"] == k & Analysis.Data[, "Group"] == 1, "Discharge"])-
@@ -131,6 +129,7 @@ follow.up.analysis = function(AgeNum = 5,
   result = t.test(test.data)
   
   # output the result
-  return(result)
+  return(list(Analysis.Data,
+              result))
   
 }

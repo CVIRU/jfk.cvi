@@ -7,7 +7,6 @@
 #         matching function; unique up to study patient                            #
 #Variables: Matchrows-matched pairs created using matching                         #
 #           Match.seed-seed for randomly choosing the one to one matches           #
-#                                                                                  #
 ####################################################################################
 
 final.matching = function(Matchrows = matchrows,

@@ -2,7 +2,7 @@
 #Name: matching                                                                    #
 #Author: Traymon Beavers                                                           #
 #Date Created: 3/29/2017                                                           #
-#Date Updated: 3/7/2018                                                            #
+#Date Updated: 6/7/2018                                                            #
 #Purpose: To match the data based on gender, race, type of stroke, age, baseline   #
 #         functional outcome scores, propensity score, and facility adjustor       #
 #         number; matches control group patients to study group patients           #
@@ -10,16 +10,13 @@
 #           DischargeMobNum-width for baseline mobility score partial matching     #
 #           DischargeActNum-width for baseline activity score partial matching     #
 #           DischargeCogNum-width for baseline cognitive score partial matching    #
-#           PScoreNum-width for propensity score partial matching                  #
 #           FacAdjNum-width for facility adjustor partial matching                 #
-#                                                                                  #
 ####################################################################################
 
 matching = function(AgeNum = 5, 
                     DischargeMobNum = 20, 
                     DischargeActNum = 20, 
-                    DischargeCogNum = 20, 
-                    PScoreNum = 1, 
+                    DischargeCogNum = 20,
                     FacAdjNum = 5){
   
   # create a data matrix for the characteristics to be used for matching for each 
@@ -67,8 +64,6 @@ matching = function(AgeNum = 5,
           Interpolate.Master.One.Control[i,"Gender"] == Study.Characteristics[j,"Gender"] &
           Interpolate.Master.One.Control[i,"New.Race"] == Study.Characteristics[j, "New.Race"] &
           Interpolate.Master.One.Control[i,"Type.of.Stroke"] == Study.Characteristics[j, "Type.of.Stroke"] &
-          # Interpolate.Master.One.Control[i,"Propensity.Score"] >= (Study.Characteristics[j,"Propensity.Score"] - PScoreNum) &
-          # Interpolate.Master.One.Control[i,"Propensity.Score"] <= (Study.Characteristics[j,"Propensity.Score"] + PScoreNum) &
           Interpolate.Master.One.Control[i,"ARHosp.JRI.Facility.Adjustor"] >= (Study.Characteristics[j, "ARHosp.JRI.Facility.Adjustor"] - FacAdjNum) & 
           Interpolate.Master.One.Control[i,"ARHosp.JRI.Facility.Adjustor"] <= (Study.Characteristics[j, "ARHosp.JRI.Facility.Adjustor"] + FacAdjNum)){
         
@@ -105,7 +100,7 @@ matching = function(AgeNum = 5,
   
 }
 
-# # Check that function works as intended ####
+# Check that function works as intended ####
 # 
 # # create matches
 # matchrows = matching()
@@ -115,14 +110,14 @@ matching = function(AgeNum = 5,
 # 
 #   # print the matches and the characteristics they are supposed to be matched on
 #   print(Interpolate.Master.One[Interpolate.Master.One[, "ID"] %in% matchrows[which(matchrows[, "PairID"] == i), 2], c("ID",
-#                                                                                                     "Group",
-#                                                                                                     "Age",
-#                                                                                                     "Gender",
-#                                                                                                     "New.Race",
-#                                                                                                     "Discharge.Mobility",
-#                                                                                                     "Discharge.Activity",
-#                                                                                                     "Discharge.Cognitive",
-#                                                                                                     "Type.of.Stroke",
-#                                                                                                     "ARHosp.JRI.Facility.Adjustor")])
+#                                                                                                                       "Group",
+#                                                                                                                       "Age",
+#                                                                                                                       "Gender",
+#                                                                                                                       "New.Race",
+#                                                                                                                       "Discharge.Mobility",
+#                                                                                                                       "Discharge.Activity",
+#                                                                                                                       "Discharge.Cognitive",
+#                                                                                                                       "Type.of.Stroke",
+#                                                                                                                       "ARHosp.JRI.Facility.Adjustor")])
 # 
 # }

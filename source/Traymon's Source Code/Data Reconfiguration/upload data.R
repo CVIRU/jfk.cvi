@@ -2,21 +2,35 @@
 #Name: upload data                                                                 #
 #Author: Traymon Beavers                                                           #
 #Date Created: 7/21/2017                                                           #
-#Date Updated: 3/7/2018                                                            #
+#Date Updated: 6/7/2018                                                            #
 #Purpose: To upload and reconfigure data from the stroke rehabilitation program;   #
 #         6th round of data received                                               #
 ####################################################################################
+
+# load necessary packages
+library(knitr)
 
 # Upload data ####
 
 # upload Data in R
 OldMaster = read.csv("data/DEID_All6.csv")
 
-# delete extraneous varibale
+# check how many patients are in the original dataset
+length(unique(OldMaster[, "ID"]))
+# As of 6/7/2018 783 patients
+
+# delete extraneous rownames variable
 OldMaster = OldMaster[, -1]
+
+# extract IDs of patients that were pregnant
+preg.IDs = unique(OldMaster[OldMaster[, "Current.pregnancy"] == TRUE, "ID"])
 
 # delete the patients that were pregnant at the time of the study
 OldMaster = OldMaster[OldMaster[, "Current.pregnancy"] == FALSE, ]
+
+# check how many patients are left in the original dataset
+length(unique(OldMaster[, "ID"]))
+# As of 6/7/2018 780 patients remain after removing those that were pregnant
 
 # change all unknown hispanic ethnicity values to No
 OldMaster[OldMaster[, "Hispanic.Ethnicity"] == "Unknown", "Hispanic.Ethnicity"] = "No"
@@ -25,17 +39,30 @@ OldMaster = droplevels(OldMaster)
 # rename dataset
 Master = OldMaster
 
+# extract IDs of patients in "other" group
+other.IDs = unique(Master[Master[,"Group"] == "Other","ID"])
+
+# extract IDs of patients in "no CVG" group
+noCVG.IDs = unique(Master[Master[,"Group"] == "Study - No CVG","ID"])
+
 # Rename races other than black or white as "Other" ####
 
 # rename Description variable as Race
 colnames(Master)[10] = "Race"
 
+# create the New.Race variable
 Master[Master[, "Race"] == "BLACK OR AFRICAN AMERICAN", "New.Race"] = "Black"
 
 Master[Master[, "Race"] == "WHITE", "New.Race"] = "White"
 
 Master[Master[, "Race"] != "BLACK OR AFRICAN AMERICAN" & 
          Master[,"Race"] != "WHITE", "New.Race"] = "Other"
+
+# factor the New.Race variable
+Master[, "New.Race"] = factor(Master[,"New.Race"],
+                              levels = c("White",
+                                         "Black",
+                                         "Other"))
 
 # Create consistent missing value indicators for variables used for analysis####
 
@@ -133,18 +160,97 @@ for (i in 1:dim(Master)[1]){
     
   }
   
+  for (j in c("Height",
+              "TotNoOfMod_HighRisk",
+              "MoCA.Score",
+              "PT.Int.Treat.Minutes",
+              "OT.Int.Treat.Minutes",
+              "ST.Int.Treat.Minutes",
+              "Cardiovascular.Group.Met.Mins")){
+    
+    if(Master[i, j] == 9999
+       | Master[i, j] == 8888
+       | is.na(Master[i, j]) == 1){
+      
+      Master[i, j] = NA
+      
+    }
+    
+  }
+  
 }
+
+# make sure the all missing values are consistent
+# for (i in 1:ncol(Master)){
+#   
+#   if (class(Master[, i]) %in% c("numeric",
+#                                "integer")){
+#     
+#     range.check = range(Master[, i], 
+#                         na.rm = TRUE)
+#     
+#     if (range.check[2] > 1000){
+#       
+#       print(colnames(Master)[i])
+#       
+#       print(range.check)
+#       
+#     }
+#     
+#   }
+#   
+# }
 
 # Create a new dataset with only patients that eventually landed in relevant groups ####
 
 # create vector only containing patients who landed in the study group
 StudyGroupIDs = unique(Master[Master[, "Group"] == "Study Group", "ID"])
 
+# check how many patients are in the study group
+length(StudyGroupIDs)
+# As of 6/7/2018 136
+
 # create a dataset only containing these patients
 Master.Study = Master[Master[, "ID"] %in% StudyGroupIDs, ]
 
 # create vector only containing patients who landed in the control group
 ControlGroupIDs = unique(Master[Master[, "Group"] == "Control Group", "ID"])
+
+# check how many patients are in the control group
+length(ControlGroupIDs)
+# As of 6/7/2018 473
+
+# produce table of patients in each group
+group.check.table = data.frame(Group = c("Pregnant",
+                                         "Study",
+                                         "Control",
+                                         "Other",
+                                         "No CVG"),
+                               Number = c(length(preg.IDs),
+                                          length(StudyGroupIDs),
+                                          length(ControlGroupIDs),
+                                          length(other.IDs),
+                                          length(noCVG.IDs)))
+
+group.check.table[,"Group"] = as.character(group.check.table[,"Group"])
+
+group.check.table[6,] = c("None",
+                          length(unique(Master[, "ID"])) - sum(group.check.table[2:5, "Number"]))
+
+group.check.table[,"Number"] = as.numeric(group.check.table[,"Number"])
+
+kable(group.check.table)
+
+#   |Group    | Number|
+#   |:--------|------:|
+#   |Pregnant |      3|
+#   |Study    |    136|
+#   |Control  |    473|
+#   |Other    |     71|
+#   |No CVG   |     14|
+#   |None     |     86|
+
+sum(group.check.table[,2])
 
 # create a dataset only containing these patients
 Master.Control = Master[Master[, "ID"] %in% ControlGroupIDs, ]
@@ -157,12 +263,12 @@ NewMaster = NewMaster[order(NewMaster[, "ID"], NewMaster[, "DaysId"]), ]
 
 # delete patients that somehow landed in both groups
 # NewMaster = NewMaster[-which(NewMaster[, "ID"] %in% intersect(StudyGroupIDs, ControlGroupIDs)), ]
-# As of 12/28/2017 there are no patients in both groups
+# As of 6/7/2018 there are no patients in both groups
 
 # delete the patients with NO CVG
 # NOCVGIDs = unique(NewMaster[NewMaster[, "CVG.Participant_Descr"] == "NO CVG", "ID" ])
 # NewMaster = NewMaster[!(NewMaster[, "ID"] %in% NOCVGIDs), ]
-# As of 12/28/2017 this no longer necessary
+# As of 6/7/2018 there are no patients in CVG group with NO CVG
 
 # Create variables for days after assignment to group and important scores for each functional outcome ####
 
@@ -224,108 +330,70 @@ NewMaster[, "Days.After.Assignment"] =
 # drop unused levels
 NewMaster = droplevels(NewMaster)
 
-# Fill in the blanks for CVG score and remove certain patients from the dataset ####
-
-# AllStudyIDs = NewMaster[NewMaster[,"Group"] == "Study Group" &
-#                           NewMaster[,"DaysId"] == 3, "ID"]
-# 
-# CVGIDs = NewMaster[NewMaster[,"CVG.Participant_Descr"] != "" &
-#                      NewMaster[,"DaysId"] == 11, "ID"]
-# 
-# Blank.CVGIDs = setdiff(AllStudyIDs,CVGIDs)
-# 
-# CVG.Corrections = read.csv("data/CVG Corrections.csv")[1:19,]
-# 
-# CVG.Corrections[12:13,] = CVG.Corrections[13:12,]
-# 
-# CVG.Corrections[CVG.Corrections[,"Education.Level"] == 9999, "Education.Level"] = NA
-# 
-# CVG.Corrections = droplevels(CVG.Corrections)
-# 
-# colnames(CVG.Corrections)[7:14] = c("CVG.Participant_Descr",
-#                                     "CVG.Freq",
-#                                     "CVG.Total",
-#                                     "CVG.Baseline",
-#                                     "CVG.9.Met.Minutes",
-#                                     "CVG.18.Met.Minutes",
-#                                     "CVG.27.Met.Minutes",
-#                                     "CVG.36.Met.Minutes")
-# 
-# for.binding = droplevels(NewMaster[NewMaster[,"ID"] %in% Blank.CVGIDs &
-#                                      NewMaster[,"DaysId"] == 3, ])
-# 
-# for.binding = for.binding[order(for.binding[,"Gender"],
-#                                 for.binding[,"Age"]), ]
-# 
-# Age.list = intersect(for.binding[, c("Age")],
-#                      CVG.Corrections[, c("Age")])
-# 
-# View(for.binding[(for.binding[,"Age"] %in% Age.list),
-#                  c("Age",
-#                    "Gender",
-#                    "Hispanic.Ethnicity",
-#                    "Race",
-#                    "Health.Insurance.Name",
-#                    "Education.Level")])
-# 
-# View(CVG.Corrections[(CVG.Corrections[,"Age"] %in% Age.list),
-#                      c("Age",
-#                        "Gender",
-#                        "Hispanic.Ethnicity",
-#                        "Race",
-#                        "Health.Insurance.Name",
-#                        "Education.Level")])
-# 
-# for.binding[(for.binding[,"Age"] %in% Age.list),
-#                  c("Age",
-#                    "Gender",
-#                    "Hispanic.Ethnicity",
-#                    "Race",
-#                    "Health.Insurance.Name",
-#                    "Education.Level")] == CVG.Corrections[(CVG.Corrections[,"Age"] %in% Age.list),
-#                      c("Age",
-#                        "Gender",
-#                        "Hispanic.Ethnicity",
-#                        "Race",
-#                        "Health.Insurance.Name",
-#                        "Education.Level")]
-# 
-# for.binding = for.binding[(for.binding[,"Age"] %in% Age.list), ]
-# 
-# for.binding[, c("CVG.Participant_Descr",
-#                 "CVG.Freq",
-#                 "CVG.Total",
-#                 "CVG.Baseline",
-#                 "CVG.9.Met.Minutes",
-#                 "CVG.18.Met.Minutes",
-#                 "CVG.27.Met.Minutes",
-#                 "CVG.36.Met.Minutes")] = CVG.Corrections[(CVG.Corrections[,"Age"] %in% Age.list), 
-#                                                          c("CVG.Participant_Descr",
-#                                                            "CVG.Freq",
-#                                                            "CVG.Total",
-#                                                            "CVG.Baseline",
-#                                                            "CVG.9.Met.Minutes",
-#                                                            "CVG.18.Met.Minutes",
-#                                                            "CVG.27.Met.Minutes",
-#                                                            "CVG.36.Met.Minutes")]
-# 
-# for.binding[, "DaysId"] = 11
-# 
-# for.binding[, c(72:103)] = NA
-# 
-# NewMaster = rbind.data.frame(NewMaster, for.binding)
-# 
-# NewMaster = NewMaster[order(NewMaster[,"ID"], NewMaster[,"DaysId"]), ]
-# 
-# Remove.IDs = unique(NewMaster[NewMaster[, "CVG.Participant_Descr"] == "NO CVG" |
-#                                 NewMaster[, "CVG.Participant_Descr"] == "OTHER", "ID"])
-# 
-# NewMaster = NewMaster[NewMaster[,"ID"] != 555 & 
-#                         !(NewMaster[,"ID"] %in% Remove.IDs), ]
-# As of 12/18/2018 may not be necessary
-
 # Create a dataset with one observation for each patient ####
 NewMaster.One = NewMaster[NewMaster[, "DaysId"] == 3, ]
+
+
+
+# make sure all patients in NewMaster show up in NewMaster.One
+length(unique(NewMaster[, "ID"]))
+length(unique(NewMaster.One[, "ID"]))
+# As of 6/7/2018 both have 609 patients
+
+# check maximum follow up times for each patient in each group
+not.deceased = NewMaster.One[!NewMaster.One[,"Deceased_Y.N"], "ID"]
+
+follow.up.vec.study = max(NewMaster[NewMaster[, "ID"] == intersect(StudyGroupIDs, not.deceased)[1], "Days_afterOnset"])
+
+for (i in 2:length(intersect(StudyGroupIDs, not.deceased))){
+  
+  follow.up.vec.study = c(follow.up.vec.study,
+                    max(NewMaster[NewMaster[, "ID"] == intersect(StudyGroupIDs, not.deceased)[i], "Days_afterOnset"],
+                        na.rm = TRUE))
+  
+}
+
+min(follow.up.vec.study)
+# 108
+
+median(follow.up.vec.study)
+# 365
+
+follow.up.vec.control = max(NewMaster[NewMaster[, "ID"] == intersect(ControlGroupIDs, not.deceased)[1], "Days_afterOnset"])
+
+for (i in 2:length(intersect(ControlGroupIDs, not.deceased))){
+  
+  follow.up.vec.control = c(follow.up.vec.control,
+                    max(NewMaster[NewMaster[, "ID"] == intersect(ControlGroupIDs, not.deceased)[i], "Days_afterOnset"],
+                        na.rm = TRUE))
+  
+}
+
+min(follow.up.vec.control)
+#91
+
+median(follow.up.vec.control)
+#355
+
+follow.up.vec.all = max(NewMaster[NewMaster[, "ID"] == NewMasterIDs[1], "Days_afterOnset"])
+
+for (i in 2:length(NewMasterIDs)){
+  
+  follow.up.vec.all = c(follow.up.vec.all,
+                            max(NewMaster[NewMaster[, "ID"] == NewMasterIDs[i], "Days_afterOnset"],
+                                na.rm = TRUE))
+  
+}
+
+min(follow.up.vec.all)
+# 91
+
+median(follow.up.vec.all)
+# 363
+
+max(follow.up.vec.all)
+# 422
+
 
 # create vectors for easy reference to each functional outcome
 ScoreName = c("Mobility", 
@@ -398,6 +466,7 @@ NewMaster.One.Control[NewMaster.One.Control[, "Deceased_Y.N"] == FALSE, "Surviva
 NewMaster.One = rbind.data.frame(NewMaster.One.Study,
                                  NewMaster.One.Control)
 
+# order dataset by ID and visit number
 NewMaster.One = NewMaster.One[order(NewMaster.One[, "ID"], 
                                     NewMaster.One[, "DaysId"]), ]
 
@@ -408,66 +477,6 @@ NewMaster.One[NewMaster.One[, "Deceased_Y.N"] == TRUE &
 # drop unused levels
 NewMaster.One = droplevels(NewMaster.One)
 
-# Create a variable for propensity score ####
-# 
-# # create a vector containing each ID in the dataset created above
-# NewMasterIDs = unique(NewMaster[,"ID"])
-# 
-# # initialize the variable for every propensity score
-# NewMaster.One[,"Propensity.Score"] = 0
-# 
-# NewMaster.One[,"Propensity.Weight"] = 0
-# 
-# NewMaster.One[, "Group"] = droplevels(NewMaster.One[, "Group"])
-# 
-# NewMaster.One[,"Group"] = relevel(NewMaster.One[,"Group"], ref = "Study Group")
-# 
-# Propensity.Variables = colnames(NewMaster.One)[c(2:3,8:10,18:20,23,30,37:44,67,116:121)]
-# 
-# Propensity.Variables2 = colnames(NewMaster.One)[c(2:3,8:10,18:20,23,30,37:44,46:68,116:121)]
-# 
-# fmla = as.formula(paste("Group ~ ", paste(Propensity.Variables, collapse="+")))
-# 
-# fmla2 = as.formula(paste("Group ~ ", paste(Propensity.Variables2, collapse="+")))
-# 
-# # calculate the propensity score for each patient
-# glm.out = glm(formula = fmla,
-#               family = binomial(logit),
-#               data = NewMaster.One[,c("Group", Propensity.Variables)])
-# 
-# NewMaster.One[,"Propensity.Score"] = glm.out$fitted.values
-# 
-# NewMaster.One[NewMaster.One[, "Group"] == "Study Group", "Propensity.Weight"] =
-#   1/(1-NewMaster.One[NewMaster.One[, "Group"] == "Study Group", "Propensity.Score"])
-# 
-# NewMaster.One[NewMaster.One[, "Group"] == "Control Group", "Propensity.Weight"] =
-#   1/NewMaster.One[NewMaster.One[, "Group"] == "Control Group", "Propensity.Score"]
-# 
-# NewMaster.One[,"Sample.Weight"] = NewMaster.One[,"Propensity.Weight"]/sum(NewMaster.One[,"Propensity.Weight"])
-# 
-# # initialize a counter for scrolling through IDs
-# C=1
-# 
-# # cycle through every observation in the dataset
-# for (i in 1:dim(NewMaster)[1]){
-#   
-#   # if the ID for the current observation isn't equal to the ID for the previous ID,
-#   # increase the counter by one to move to the next ID
-#   if (NewMaster[i,"ID"] != NewMasterIDs[C] & C != (length(NewMasterIDs))){
-#     
-#     C = C+1
-#     
-#   }
-#   
-#   # fill in the propensity score
-#   NewMaster[i,"Propensity.Score"] = NewMaster.One[NewMaster.One[,"ID"] == NewMasterIDs[C], "Propensity.Score"]
-#   
-#   NewMaster[i,"Propensity.Weight"] = NewMaster.One[NewMaster.One[,"ID"] == NewMasterIDs[C], "Propensity.Weight"]
-#   
-#   NewMaster[i,"Sample.Weight"] = NewMaster.One[NewMaster.One[,"ID"] == NewMasterIDs[C], "Sample.Weight"]
-# }
-#
-# As of 2/28/2017 this is no longer needed
 # Remove unnecessary values ####
 rm(Master,
    Master.Control,
@@ -475,4 +484,12 @@ rm(Master,
    OldMaster,
    C,
    i,
-   j)
+   j,
+   group.check.table,
+   follow.up.vec.study,
+   follow.up.vec.control,
+   follow.up.vec.all,
+   not.deceased,
+   other.IDs,
+   preg.IDs,
+   noCVG.IDs)
