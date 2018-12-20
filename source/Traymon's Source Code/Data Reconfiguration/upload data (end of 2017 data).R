@@ -2,7 +2,7 @@
 #Name: upload data (end of 2017 data)                                              #
 #Author: Traymon Beavers                                                           #
 #Date Created: 9/7/2018                                                            #
-#Date Updated: 9/7/2018                                                            #
+#Date Updated: 9/12/2018                                                           #
 #Purpose: To upload and reconfigure data from the stroke rehabilitation program;   #
 #         5th round of data received (end of 2017 data)                            #
 ####################################################################################
@@ -17,7 +17,7 @@ OldMaster = read.csv("data/DEID_All5.csv")
 
 # check how many patients are in the original dataset
 length(unique(OldMaster[, "ID"]))
-# As of 9/7/2018 625 patients
+# As of 9/12/2018 625 patients
 
 # delete extraneous rownames variable
 OldMaster = OldMaster[, -1]
@@ -30,7 +30,7 @@ OldMaster = OldMaster[OldMaster[, "Current.pregnancy"] == FALSE, ]
 
 # check how many patients are left in the original dataset
 length(unique(OldMaster[, "ID"]))
-# As of 9/7/2018 622 patients remain after removing those that were pregnant
+# As of 9/12/2018 622 patients remain after removing those that were pregnant
 
 # change all unknown hispanic ethnicity values to No
 OldMaster[OldMaster[, "Hispanic.Ethnicity"] == "Unknown", "Hispanic.Ethnicity"] = "No"
@@ -178,25 +178,25 @@ for (i in 1:dim(Master)[1]){
 }
 
 # make sure the all missing values are consistent
-for (i in 1:ncol(Master)){
-
-  if (class(Master[, i]) %in% c("numeric",
-                               "integer")){
-
-    range.check = range(Master[, i],
-                        na.rm = TRUE)
-
-    if (range.check[2] > 1000){
-
-      print(colnames(Master)[i])
-
-      print(range.check)
-
-    }
-
-  }
-
-}
+# for (i in 1:ncol(Master)){
+# 
+#   if (class(Master[, i]) %in% c("numeric",
+#                                "integer")){
+# 
+#     range.check = range(Master[, i],
+#                         na.rm = TRUE)
+# 
+#     if (range.check[2] > 1000){
+# 
+#       print(colnames(Master)[i])
+# 
+#       print(range.check)
+# 
+#     }
+# 
+#   }
+# 
+# }
 
 # Create a new dataset with only patients that eventually landed in relevant groups ####
 
@@ -206,7 +206,7 @@ StudyGroupIDs = Master[Master[, "DaysId"] == 3 &
 
 # check how many patients are in the study group
 length(StudyGroupIDs)
-# As of 9/7/2018 119
+# As of 9/12/2018 119
 
 # create a dataset only containing these patients
 Master.Study = Master[Master[, "ID"] %in% StudyGroupIDs, ]
@@ -217,7 +217,7 @@ ControlGroupIDs = Master[Master[, "DaysId"] == 3 &
 
 # check how many patients are in the control group
 length(ControlGroupIDs)
-# As of 9/7/2018 374
+# As of 9/12/2018 374
 
 # create a dataset only containing these patients
 Master.Control = Master[Master[, "ID"] %in% ControlGroupIDs, ]
@@ -230,16 +230,20 @@ group.check.table = data.frame(Group = c("Pregnant",
                                          "Study",
                                          "Control",
                                          "Other",
-                                         "None"),
+                                         "None",
+                                         "Total"),
                                Number = c(length(preg.IDs),
                                           length(StudyGroupIDs),
                                           length(ControlGroupIDs),
                                           length(other.IDs),
-                                          no.group.num))
+                                          no.group.num,
+                                          0))
 
-group.check.table[,"Group"] = as.character(group.check.table[,"Group"])
+group.check.table[6, "Number"] = sum(group.check.table[1:5, "Number"])
 
-group.check.table[,"Number"] = as.numeric(group.check.table[,"Number"])
+group.check.table[, "Group"] = as.character(group.check.table[, "Group"])
+
+group.check.table[, "Number"] = as.numeric(group.check.table[, "Number"])
 
 kable(group.check.table)
 
@@ -250,8 +254,7 @@ kable(group.check.table)
 #   |Control  |    374|
 #   |Other    |     52|
 #   |None     |     77|
-
-sum(group.check.table[,2])
+#   |Total    |    625|
 
 # combine both treatment groups back together
 NewMaster = rbind.data.frame(Master.Study, Master.Control)
@@ -262,7 +265,7 @@ NewMaster = NewMaster[order(NewMaster[, "ID"], NewMaster[, "DaysId"]), ]
 # only keep study group patients with full CVG participation
 NOCVGIDs = unique(NewMaster[NewMaster[, "CVG.Participant_Descr"] == "NO CVG", "ID"])
 NewMaster = NewMaster[!(NewMaster[, "ID"] %in% NOCVGIDs), ]
-# As of 9/7/2018 there are 9 patients in CVG group with NO CVG
+# As of 9/12/2018 there are 9 patients in CVG group with NO CVG
 
 # Create variables for days after assignment to group and important scores for each functional outcome ####
 
@@ -331,7 +334,7 @@ NewMaster.One = NewMaster[NewMaster[, "DaysId"] == 3, ]
 # make sure all patients in NewMaster show up in NewMaster.One
 length(unique(NewMaster[, "ID"]))
 length(unique(NewMaster.One[, "ID"]))
-# As of 9/7/2018 both have 484 patients
+# As of 9/12/2018 both have 484 patients
 
 # check maximum follow up times for each patient in each group
 not.deceased = NewMaster.One[!NewMaster.One[,"Deceased_Y.N"], "ID"]
@@ -486,5 +489,4 @@ rm(Master,
    other.IDs,
    preg.IDs,
    no.group.num,
-   range.check,
    NOCVGIDs)

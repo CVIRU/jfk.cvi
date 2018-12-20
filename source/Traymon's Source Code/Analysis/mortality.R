@@ -180,18 +180,26 @@ ggplot(tmp.data2,
   geom_step(aes(linetype = Group)) +
   scale_x_continuous("Days After Stroke") +
   scale_y_continuous("Probability of Survival",
-                     limits = c(.86, 1)) +
+                     limits = c(0.60, 1)) +
   scale_linetype_manual(values = c("dashed", "solid"),
-                        labels = c("Non-participant", "SRP Participant")) +
+                        labels = c("Non-participant", "SRP-participant")) +
   geom_text(x = 50,
-            y = 0.925,
-            label = "P = 0.015",
+            y = 0.80,
+            label = "P = 0.039",
             size = 5) +
-  ggtitle("Survival Curves for All-Cause Mortality by Rehabilitation Group") +
+  # geom_text(x = 50,
+  #           y = 0.775,
+  #           label = "95% CI",
+  #           size = 5) +
+  # geom_text(x = 50,
+  #           y = 0.75,
+  #           label = "(0.01,0.90)",
+  #           size = 5) +
+  ggtitle("Kaplan-Meier Curves for All-Cause Mortality") +
   theme(plot.title = element_text(hjust = 0.5),
         legend.position = "top")
 
-ggsave("media/Mortality/Survival Curve (After Matching) 6-8-2018.tiff", 
+ggsave("media/Mortality/Survival Curve (After Matching) 10-19-2018.tiff", 
        device = "tiff",
        width = 8,
        height = 5, 
@@ -264,15 +272,21 @@ ggsave("media/Mortality/Survival Curve (After Matching) 6-8-2018.tiff",
 # Calculate hazard ratios ####
 
 tmp[,"Group"] = relevel(tmp[,"Group"],
-                        ref = "Study Group")
+                        ref = "Control Group")
 
 cox.fit = coxph(Surv(tmp[, "Survival.Time"], 
-                     tmp[, "Deceased_Y.N"]) ~ Group,
+                     tmp[, "Deceased_Y.N"]) ~ Group + Age,
                 data = tmp)
 
 cox.sum = summary(cox.fit)
 
-cox.sum$coefficients
+predict(cox.fit)
+
+
+
+
+exp(cox.sum$coefficients[1,1] - qnorm(0.975)*cox.sum$coefficients[1,3])
+exp(cox.sum$coefficients[1,1] + qnorm(0.975)*cox.sum$coefficients[1,3])
 
 # Calculate odds ratios ####
 word = table(mortality.data[,"Group"],

@@ -96,22 +96,22 @@ lmer.analysis = function(AgeNum = 5,
   Analysis.Data = Interpolate.Master.Analysis[Interpolate.Master.Analysis[ ,"DaysId"] < 7, ]
   
   fmla1 = as.formula(paste("Score.Diff.from.Discharge ~ ", 
-                           paste(c("Group", 
+                           paste(c("Group",
+                                   "Age",
                                    "(ID | PairID)"), 
                                  collapse="+")))
   
   fmla2 = as.formula(paste("Score.Diff.from.Discharge ~ ", 
                            paste(c("Group", 
-                                   "Days.After.Assignment", 
-                                   "(ID | PairID) + (1 | Follow.Up.After.Assignment)"), 
+                                   "Age", 
+                                   "(1 | PairID) + (1 | ID)"), 
                                  collapse="+")))
   
   fmla3 = as.formula(paste("Score.Diff.from.Discharge ~ ", 
                            paste(c("Group", 
-                                   "Days.After.Assignment", 
-                                   "(ID | PairID) + (1 | Follow.Up.After.Assignment)"), 
-                                 collapse="+"), 
-                           "+ Group*Days.After.Assignment"))
+                                   "Age", 
+                                   "(1 | PairID)"), 
+                                 collapse="+")))
   
   fmla4 = as.formula(paste("Score.Diff.from.Discharge ~ ", 
                            paste(c(Analysis.Variables[c(2:6,8,9)], 

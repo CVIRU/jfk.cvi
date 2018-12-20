@@ -1,24 +1,26 @@
 #################################Program Description################################
-#Name: check data                                                                  #
+#Name: check data (end of 2017 data)                                               #
 #Author: Traymon Beavers                                                           #
 #Depends: upload data.R                                                            #
-#Date Created: 7/21/2017                                                           #
-#Date Updated: 10/12/2018                                                          #
+#Date Created: 9/12/2018                                                           #
+#Date Updated: 9/12/2018                                                           #
 #Purpose: To check whether data is appropriate and remove incorrect data points if #
-#         necessary                                                                #
+#         necessary (end of 2017 data)                                             #
 ####################################################################################
 
 # Notes about data ####
 ### For some pairs of DaysId (i,j) where j>i, the days after onset for DaysID==i
-### is greater than the days after onset for DaysID==j, 171 instances of this, 
+### is greater than the days after onset for DaysID==j, 164 instances of this, 
 ### 15 make it to final matched analysis
 ### ID 99 has Dis-FIM Motor score of 8
-### ID 765 has 20442.4 for met mins
+### ID 614 has two entries for DaysId = 6
+### ID 156 has 27552.8 for met mins
+### ID 204 has 249975.0 for met mins
 
 # Load the necessary source code ####
-source("source/Traymon's Source Code/Data Reconfiguration/upload data.R")
+source("source/Traymon's Source Code/Data Reconfiguration/upload data (end of 2017 data).R")
 
-# # Check that the data is in the correct ranges ####
+# Check that the data is in the correct ranges ####
 # 
 # # check education level range
 # NewMaster[which((NewMaster[,"Education.Level"] > 40 | NewMaster[,"Education.Level"] < 0) & NewMaster[,"Education.Level"] != 9999), "Education.Level"]
@@ -139,20 +141,33 @@ source("source/Traymon's Source Code/Data Reconfiguration/upload data.R")
 # NewMaster[which((NewMaster[, "CVG.Total"] > 36 | NewMaster[, "CVG.Total"] < 0) &
 #                   NewMaster[, "CVG.Total"] != 9999 & NewMaster[, "CVG.Total"] != 8888),
 #           c("ID", "CVG.Total")]
+# # As of 9/12/2018 the data is within normal ranges except for ID 765 which is fixed below
 # 
+# # check that every ID only has 1 entry for each DaysId
 # for (i in 1:8){
 # 
 #   print(length(NewMaster[NewMaster[,"DaysId"] == i, "DaysId"]) ==
 #           length(unique(NewMaster[NewMaster[,"DaysId"] == i, "ID"])))
 # 
 # }
+# As of 9/12/2018 ID 614 has two entries for DaysId = 6
 
-# As of 10/12/2018 the data is within normal ranges except for ID 765 which is fixed below ####
+# remove the second entry for DaysId = 6 for ID = 614
+NewMaster = NewMaster[-max(which(NewMaster[, "ID"] == 614)), ]
 
-correct.mets = NewMaster[NewMaster[, "ID"] == 765, "Cardiovascular.Group.Intensity.Mets."][6]
-correct.mins = NewMaster[NewMaster[, "ID"] == 765, "Cardiovascular.Group.Tot.Mins"][6]
-NewMaster[!is.na(NewMaster[, "Cardiovascular.Group.Met.Mins"]) &
-            NewMaster[, "Cardiovascular.Group.Met.Mins"] == 20442.4, "Cardiovascular.Group.Met.Mins"] = correct.mets*correct.mins
+# fix the MetMin for ID = 156
+correct.mets = NewMaster[NewMaster[, "ID"] == 156 & 
+                           NewMaster[, "DaysId"] == 6, "Cardiovascular.Group.Intensity.Mets."]
+
+correct.mins = NewMaster[NewMaster[, "ID"] == 156 & 
+                           NewMaster[, "DaysId"] == 6, "Cardiovascular.Group.Tot.Mins"]
+
+NewMaster[NewMaster[, "ID"] == 156 & 
+            NewMaster[, "DaysId"] == 6, "Cardiovascular.Group.Met.Mins"] = correct.mets*correct.mins
+
+# fix the MetMin for ID = 204
+NewMaster[NewMaster[, "ID"] == 204 & 
+            NewMaster[, "DaysId"] == 6, "Cardiovascular.Group.Met.Mins"] = NA
 
 # Find the patients with days after onset entered incorrectly ####
 # ErrorIDs = NewMaster[NewMaster[, "DaysId"] > 2 &
@@ -174,7 +189,7 @@ NewMaster[!is.na(NewMaster[, "Cardiovascular.Group.Met.Mins"]) &
 #                    NewMaster[, "Days.After.Assignment"] < 0) |
 #                   (NewMaster[, "DaysId"] == 2 &
 #                     NewMaster[, "ID"] %in% ErrorIDs), c("Group")])
-# As of 6/7/2018 there are 215 patients (212 control, 3 study)
+# As of 9/12/2018 there are 164 patients (161 control, 3 study)
 # with incorrect observations in days after onset, all relabeled as NA below
 
 NewMaster[NewMaster[, "DaysId"] > 2 &
@@ -182,13 +197,12 @@ NewMaster[NewMaster[, "DaysId"] > 2 &
             NewMaster[, "Days.After.Assignment"] < 0, "Days.After.Assignment"] = NA
 
 # Check the median and range of follow up days after assignment ####
-# 
 # median(NewMaster[NewMaster[, "DaysId"] > 2 &
 #                   NewMaster[, "Days.After.Assignment"] >= 0, "Days.After.Assignment"], na.rm = TRUE)
 # 
 # range(NewMaster[NewMaster[, "DaysId"] > 2 &
 #                   NewMaster[, "Days.After.Assignment"] >= 0, "Days.After.Assignment"], na.rm = TRUE)
-# As of 10/12/2018, median is 85, range is 0 to 399
+# As of 9/12/2018, median is 83, range is 0 to 399
 
 # Remove unnecessary values ####
 rm(correct.mets,

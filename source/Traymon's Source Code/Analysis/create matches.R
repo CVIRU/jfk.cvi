@@ -222,6 +222,62 @@ matchrows = matching(AgeNum = 5,
 matchrow.final = final.matching(Matchrows = matchrows,
                                 Match.seed = 912)
 
+# for (i in unique(matchrow.final[,"PairID"])){
+# 
+#   if (sum(matchrow.final[,"PairID"] == i) > 2){
+# 
+#     print(matchrow.final[matchrow.final[,"PairID"] == i, ])
+# 
+#   }
+# 
+# }
+
+# PairID  ID Group
+# 56 398     1
+# 56 102     0
+# 56 723     1
+
+# PairID  ID Group
+# 60  86     1
+# 60 109     0
+# 60 713     1
+
+# PairID  ID Group
+# 76 286     1
+# 76 151     0
+# 76 556     1
+
+# PairID  ID Group
+# 81  35     1
+# 81 163     0
+# 81 250     1
+
+# PairID  ID Group
+# 100 142     1
+# 100 244     0
+# 100 194     1
+
+# PairID  ID Group
+# 109  93     1
+# 109 296     0
+# 109 343     1
+
+# PairID  ID Group
+# 130 208     1
+# 130 372     0
+# 130 586     1
+
+# PairID  ID Group
+# 148 303     1
+# 148 433     0
+# 148 673     1
+
+# PairID  ID Group
+# 161 461     1
+# 161 498     0
+# 161 502     1
+# 161 611     1
+
 # extract the data
 match.subgroup = Interpolate.Master[Interpolate.Master[,"ID"] %in% matchrow.final[, "ID"], ]
 match.subgroup.One = Interpolate.Master.One[Interpolate.Master.One[,"ID"] %in% matchrow.final[, "ID"], ]

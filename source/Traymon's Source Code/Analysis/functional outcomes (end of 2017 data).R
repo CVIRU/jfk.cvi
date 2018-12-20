@@ -13,184 +13,16 @@
 ####################################################################################
 
 # Load the necessary source code, functions, and packages ####
-source("source/Traymon's Source Code/Analysis/create matches.R")
-source("source/Traymon's Source Code/Functions/Analysis Functions/follow up analysis.R")
-source("source/Traymon's Source Code/Functions/Analysis Functions/lmer analysis.R")
+# source("source/Traymon's Source Code/Analysis/create matches.R")
+# source("source/Traymon's Source Code/Functions/Analysis Functions/follow up analysis.R")
+# source("source/Traymon's Source Code/Functions/Analysis Functions/lmer analysis.R")
+source("source/Traymon's Source Code/Data Reconfiguration/interpolate (end of 2017 data).R")
 library(ggplot2)
 library(gridExtra)
 library(data.table)
 library(lmerTest)
 
-
-# paired t-tests for SRP group ####
-
-day.00 = Interpolate.Master[Interpolate.Master[, "ID"] %in% setdiff(StudyGroupIDs,614) &
-                              Interpolate.Master[, "DaysId"] == 1, c("ID", "ST.AM.Applied.Cogn.Score")]
-
-day.120 = Interpolate.Master[Interpolate.Master[, "ID"] %in% StudyGroupIDs &
-                               Interpolate.Master[, "DaysId"] == 6, c("ID", "ST.AM.Applied.Cogn.Score")]
-
-sum(day.00$ID == day.120$ID)
-
-results = t.test(day.120$ST.AM.Applied.Cogn.Score - day.00$ST.AM.Applied.Cogn.Score)
-
-results
-
-(results$conf.int[2] - results$estimate)/qt(.975, df = 118)
-
-test.data = rep(0,nrow(matchrow.final)/2)
-
-A = 1
-
-for (i in seq(1, nrow(matchrow.final), 2)){
-  
-  if (sum(match.subgroup[, "ID"] == matchrow.final[i, "ID"] &
-          match.subgroup[, "DaysId"] == 6) != 0 & sum(match.subgroup[, "ID"] == matchrow.final[(i+1), "ID"] &
-                                                      match.subgroup[, "DaysId"] == 6) != 0){
-    
-    test.data[A] = match.subgroup[match.subgroup[, "ID"] == matchrow.final[i, "ID"] &
-                                    match.subgroup[, "DaysId"] == 6, "ST.AM.Applied.Cogn.Score"] - 
-      match.subgroup[match.subgroup[, "ID"] == matchrow.final[(i+1), "ID"] &
-                       match.subgroup[, "DaysId"] == 6, "ST.AM.Applied.Cogn.Score"]
-    
-    
-  }else{
-    
-    test.data[A] = NA
-    
-  }
-  
-  A = A + 1
-  
-}
-
-results = t.test(test.data, na.rm = TRUE)
-
-results
-
-(results$conf.int[2] - results$estimate)/qt(.975, df = 41)
-
-
 # Average line graph ####
-
-# Create dataset for before matching ####
-
-# initialize dataset
-tmp2 = as.data.frame(matrix(NA, 12, 6))
-
-# give column names to the dataset
-colnames(tmp2) = c("Group",
-                   "DaysId",
-                   ScoreVarName,
-                   "col.ggplot")
-
-# label the group variable
-tmp2[, "Group"] = rep(c("Study Group", "Control Group"), each = 6)
-
-# label the daysid variable
-tmp2[, "DaysId"] = rep(c("Admission",
-                         "Discharge",
-                         "30 Day",
-                         "60 Day",
-                         "90 Day",
-                         "120 Day"), 2)
-
-# assign colors for each follow up
-tmp2[, "col.ggplot"] = c("blue",
-                         "darkmagenta",
-                         rep("green",4),
-                         "blue",
-                         "darkmagenta",
-                         rep("red",4))
-
-# assign shapes for each follow up
-tmp2[, "shape.ggplot"] = c("Admission",
-                           "Discharge",
-                           rep("SRP Paricipant Group",4),
-                           "Admission",
-                           "Discharge",
-                           rep("Non-Paricipant Group",4))
-
-
-# cycle through the rehabilitation groups
-for (i in tmp2[, "Group"]){
-  
-  # cycle through the follow ups after discharge
-  for (j in tmp2[, "DaysId"][3:6]){
-    
-    # cycle through the functional outcomes
-    for (k in ScoreVarName){
-      
-      # fill in the average score for the given variable combination
-      tmp2[tmp2[, "Group"] == i & tmp2[, "DaysId"] == j, k] =
-        mean(Interpolate.Master[Interpolate.Master[, "Group"] == i &
-                                  Interpolate.Master[, "DaysId"] == which(unique(tmp2[, "DaysId"]) == j)  ,k], na.rm = TRUE)
-      
-    }
-    
-  }
-  
-}
-
-# cycle through the admission and discharge follow ups
-for (j in tmp2[, "DaysId"][1:2]){
-  
-  # cycle through the functional outcomes
-  for (k in ScoreVarName){
-    
-    # fill in the average score for the given variable combination for the study group
-    tmp2[tmp2[, "Group"] == "Study Group" & tmp2[, "DaysId"] == j, k] =
-      mean(Interpolate.Master[Interpolate.Master[, "ID"] %in% StudyGroupIDs &
-                                Interpolate.Master[, "DaysId"] == which(unique(tmp2[, "DaysId"]) == j), k], na.rm = TRUE)
-    
-  }
-  
-}
-
-# cycle through the admission and discharge follow ups
-for (j in tmp2[, "DaysId"][1:2]){
-  
-  # cycle through the functional outcomes
-  for (k in ScoreVarName){
-    
-    # fill in the average score for the given variable combination for the study group
-    tmp2[tmp2[, "Group"] == "Control Group" & tmp2[, "DaysId"] == j, k] =
-      mean(Interpolate.Master[Interpolate.Master[, "ID"] %in% ControlGroupIDs &
-                                Interpolate.Master[, "DaysId"] == which(unique(tmp2[, "DaysId"]) == j), k], na.rm = TRUE)
-    
-  }
-  
-}
-
-
-tmp2 = melt(tmp2, id.vars = c("Group",
-                              "DaysId",
-                              "col.ggplot",
-                              "shape.ggplot"),
-            measure.vars = c("PT.AM.PAC.Basic.Mobility.Score",
-                             "OT.AM.Daily.Activity.Score",
-                             "ST.AM.Applied.Cogn.Score"))
-
-colnames(tmp2)[5:6] = c("Score.Type", "Score")
-
-tmp2[,"Score.Type"] =  factor(tmp2[,"Score.Type"],
-                              levels = c(levels(tmp2[,"Score.Type"]),
-                                         "Basic Mobility",
-                                         "Daily Activity",
-                                         "Applied Cognitive"))
-
-tmp2[1:12,"Score.Type"] = "Basic Mobility"
-
-tmp2[13:24,"Score.Type"] = "Daily Activity"
-
-tmp2[25:36,"Score.Type"] = "Applied Cognitive"
-
-# # save the dataset as a csv file
-# write.csv(tmp2,
-#           "media/Functional Outcomes/Data Tables/AM_PAC_After_Matching.csv",
-#           row.names = FALSE)
-
-
 # Create dataset for after matching ####
 
 # initialize dataset
@@ -241,8 +73,7 @@ for (i in tmp2[, "Group"]){
 
       # fill in the average score for the given variable combination
       tmp2[tmp2[, "Group"] == i & tmp2[, "DaysId"] == j, k] =
-        mean(Interpolate.Master[Interpolate.Master[, "ID"] %in% match.subgroup.One[, "ID"] &
-                                  Interpolate.Master[, "Group"] == i &
+        mean(Interpolate.Master[Interpolate.Master[, "Group"] == i &
                                   Interpolate.Master[, "DaysId"] == which(unique(tmp2[, "DaysId"]) == j)  ,k], na.rm = TRUE)
 
     }
@@ -259,8 +90,7 @@ for (j in tmp2[, "DaysId"][1:2]){
 
     # fill in the average score for the given variable combination for the study group
     tmp2[tmp2[, "Group"] == "Study Group" & tmp2[, "DaysId"] == j, k] =
-      mean(Interpolate.Master[Interpolate.Master[, "ID"] %in% match.subgroup.One[, "ID"] &
-                                Interpolate.Master[, "ID"] %in% StudyGroupIDs &
+      mean(Interpolate.Master[Interpolate.Master[, "ID"] %in% StudyGroupIDs &
                                 Interpolate.Master[, "DaysId"] == which(unique(tmp2[, "DaysId"]) == j), k], na.rm = TRUE)
 
   }
@@ -275,8 +105,7 @@ for (j in tmp2[, "DaysId"][1:2]){
 
     # fill in the average score for the given variable combination for the study group
     tmp2[tmp2[, "Group"] == "Control Group" & tmp2[, "DaysId"] == j, k] =
-      mean(Interpolate.Master[Interpolate.Master[, "ID"] %in% match.subgroup.One[, "ID"] &
-                                Interpolate.Master[, "ID"] %in% ControlGroupIDs &
+      mean(Interpolate.Master[Interpolate.Master[, "ID"] %in% ControlGroupIDs &
                                 Interpolate.Master[, "DaysId"] == which(unique(tmp2[, "DaysId"]) == j), k], na.rm = TRUE)
 
   }
@@ -306,10 +135,10 @@ tmp2[13:24,"Score.Type"] = "Daily Activity"
 
 tmp2[25:36,"Score.Type"] = "Applied Cognitive"
 
-# # save the dataset as a csv file
-# write.csv(tmp2,
-#           "media/Functional Outcomes/Data Tables/AM_PAC_After_Matching.csv",
-#           row.names = FALSE)
+# save the dataset as a csv file
+write.csv(tmp2,
+          "media/Functional Outcomes/Data Tables/AM_PAC_After_Matching (9-12-2018).csv",
+          row.names = FALSE)
 
 # Create line plot for each score (After Matching) (no color) ####
 
@@ -322,9 +151,9 @@ ggplot(data = tmp2,
   geom_text(data = data.frame(Score.Type = c("Basic Mobility",
                                              "Daily Activity",
                                              "Applied Cognitive"),
-                              label = c("(6.12,10.80)",
-                                        "(4.47,10.88)",
-                                        "(3.65,9.74)")),
+                              label = c("(6.35,9.86)",
+                                        "(5.71,10.1)",
+                                        "(3.61,7.26)")),
             aes(x = 4.25,
                 y = 29.5,
                 label = label),
@@ -352,6 +181,7 @@ ggplot(data = tmp2,
                 label = label),
             inherit.aes = FALSE,
             size = 5) +
+  
   ggtitle(expression("Average" ~ AM-PAC^{TM} ~ "Score by Follow Up Time Point")) +
   geom_line() +
   geom_point(aes(x = DaysId,
@@ -383,7 +213,7 @@ ggplot(data = tmp2,
                                    hjust = 1))
 
 # save the plot
-ggsave("media/Functional Outcomes/AM PAC Average Line Graphs (After Matching) (no color, P & CI) (10-16-2018).tiff",
+ggsave("media/Functional Outcomes/AM PAC Average Line Graphs (After Matching) (no color, P & CI) (6-8-2018).tiff",
        device = "tiff",
        width = 10,
        height = 5,
@@ -393,14 +223,21 @@ ggsave("media/Functional Outcomes/AM PAC Average Line Graphs (After Matching) (n
 
 # Conduct follow up analysis for each score and each time point ####
 
-results1 = follow.up.analysis(ScoreNum = 3, 
-                             FollowUpNum = 6)
+# cycle through the different functional outcomes
+for (i in 1:3){
 
-results = results1[[2]]
+  # cycle through the different follow ups
+  for (j in 6){
 
-results
+    # print the paired t-test results
+    print(follow.up.analysis(ScoreNum = i, FollowUpNum = j))
 
-(results$conf.int[2] - results$estimate)/qt(.975, df = 43)
+  }
+
+}
+
+follow.up.analysis(ScoreNum = 3, 
+                   FollowUpNum = 6)
 
 # Conduct mixed effects linear model analysis for each score ####
 
@@ -474,44 +311,6 @@ results = lmer.analysis(ScoreNum = 3,
                         Choice = 1)
 
 summary(results)
-
-# fit a mixed effects linear model
-results1 = lmer.analysis(ScoreNum = 1,
-                        Choice = 2)
-
-# fit a mixed effects linear model
-results2 = lmer.analysis(ScoreNum = 2,
-                         Choice = 2)
-
-# fit a mixed effects linear model
-results3 = lmer.analysis(ScoreNum = 3,
-                         Choice = 2)
-
-# print the results
-summary(results3)
-
-lmer.sum = summary(results3)
-
-for.table = lmer.sum$coefficients
-
-for.table = as.data.frame(for.table)
-
-for.table[, "Conf.int"] = paste("(",
-                                round(for.table[, "Estimate"] - for.table[, "Std. Error"]*qt(0.975, df = for.table[, "df"]),2),
-                                ", ",
-                                round(for.table[, "Estimate"] + for.table[, "Std. Error"]*qt(0.975, df = for.table[, "df"]),2),
-                                ")",
-                                sep = "")
-
-for.table = for.table[, -c(2:4)]
-
-for.table = for.table[, c(1,3,2)]
-
-for.table[,1] = round(for.table[,1],2)
-for.table[,3] = round(for.table[,3],3)
-
-print(for.table)
-
 
 # Conduct analysis with no matching ####
 

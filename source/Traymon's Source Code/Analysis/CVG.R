@@ -9,9 +9,10 @@
 ####################################################################################
 
 # Load the necessary source code and packages ####
-source("source/Traymon's Source Code/Analysis/create matches.R")
+source("source/Traymon's Source Code/Data Reconfiguration/interpolate.R")
 library(ggplot2)
 library(lmerTest)
+
 
 # Reconfigure data for analysis ####
 
@@ -27,6 +28,9 @@ CVG.data.wide = NewMaster[NewMaster[,"Group"] == "Study Group" &
                                                                "CVG.Freq",
                                                                "CVG.Total",
                                                                "CVG.Participant_Descr")]
+
+mean(CVG.data.wide[, "CVG.Total"])
+
 
 CVG.data.long = as.data.frame(matrix(NA,
                                      5*dim(CVG.data.wide)[1],
@@ -91,6 +95,34 @@ mean(CVG.data.long.2[CVG.data.long.2[,"Participation Level"] == "FULL","Total"])
 
 mean(CVG.data.long.2[CVG.data.long.2[,"Participation Level"] == "PARTIAL","Total"])
 
+# Create table for barrier to completion ####
+
+CVG.data.BTC = NewMaster[NewMaster[, "ID"] %in% unique(CVG.data.wide[, "ID"]) &
+                           NewMaster[, "DaysId"] == 10, c("BarrierToCompletion",
+                                                          "BTC_Text")]
+
+CVG.data.BTC[, "BarrierToCompletion"] = factor(CVG.data.BTC[, "BarrierToCompletion"],
+                                               levels = levels(CVG.data.BTC[, "BarrierToCompletion"])[-1])
+
+BTC.table = table(CVG.data.BTC[, "BarrierToCompletion"])
+
+BTC.table
+
+BTC.table2 = data.frame(Reason = names(BTC.table),
+                        Number = as.numeric(BTC.table),
+                        Percent = as.numeric(BTC.table)/sum(as.numeric(BTC.table)))
+
+write.csv(BTC.table2,
+          "media/CVG/Data Tables/BTC Table.csv",
+          row.names = FALSE)
+
+BTC.table3 = data.frame(Patient = 1:26,
+                        Reason = CVG.data.BTC[CVG.data.BTC[, "BarrierToCompletion"] == "Medical complications", "BTC_Text"])
+
+write.csv(BTC.table3,
+          "media/CVG/Data Tables/Medical Breakdown.csv",
+          row.names = FALSE)
+
 # Fit a mixed effects linear model ####
 
 word = lmerTest::lmer(data = CVG.data.long.2, 
@@ -143,7 +175,6 @@ CI8 = t.test(CVG.data.long.2[CVG.data.long.2[, "Follow.Up"] == "36 Sessions", "P
 
 tmp = colMeans(CVG.data.wide[,-9], na.rm = TRUE)[-c(1,7,8)]
 
-
 tmp = rbind.data.frame(tmp,
                        100*(tmp-tmp[1])/tmp[1])
 
@@ -180,6 +211,11 @@ tmp2[,3] = rep(c("METs-min","Average Percent Improvement from Baseline"),
 
 tmp2[,3] = factor(tmp2[,3],
                   levels = c("METs-min","Average Percent Improvement from Baseline"))
+
+tmp2[7:10, "METS-Min"] = c(CI5$estimate,
+                           CI6$estimate,
+                           CI7$estimate,
+                           CI8$estimate)*100
 
 write.csv(tmp2,
           "media/CVG/Data Tables/CVGMetsMin.csv",
@@ -222,10 +258,10 @@ ggplot(data = tmp2,
                           paste("(", round(CI3$conf.int[1],2), ",", round(CI3$conf.int[2],2), ")",sep = ""),
                           paste("(", round(CI4$conf.int[1],2), ",", round(CI4$conf.int[2],2), ")",sep = ""),
                           "",
-                          paste("(", round(CI5$conf.int[1],2), ",", round(CI5$conf.int[2],2), ")",sep = ""),
-                          paste("(", round(CI6$conf.int[1],2), ",", round(CI6$conf.int[2],2), ")",sep = ""),
-                          paste("(", round(CI7$conf.int[1],2), ",", round(CI7$conf.int[2],2), ")",sep = ""),
-                          paste("(", round(CI8$conf.int[1],2), ",", round(CI8$conf.int[2],2), ")",sep = "")),
+                          paste("(", round(CI5$conf.int[1]*100,2), ",", round(CI5$conf.int[2]*100,2), ")",sep = ""),
+                          paste("(", round(CI6$conf.int[1]*100,2), ",", round(CI6$conf.int[2]*100,2), ")",sep = ""),
+                          paste("(", round(CI7$conf.int[1]*100,2), ",", round(CI7$conf.int[2]*100,2), ")",sep = ""),
+                          paste("(", round(CI8$conf.int[1]*100,2), ",", round(CI8$conf.int[2]*100,2), ")",sep = "")),
                 x = c(1:5,1:5),
                 y = rep(5,10)),
             size = 4,
@@ -234,13 +270,12 @@ ggplot(data = tmp2,
         plot.subtitle = element_text(hjust = 0.5),
         legend.position = "none")
 
-ggsave("media/CVG/Side by Side Bar Graph (no color, P & CI) (6-11-18).tiff",
+ggsave("media/CVG/Side by Side Bar Graph (no color, P & CI, 100 CI) (10-19-18).tiff",
        device = "tiff",
        width = 13,
        height = 6, 
        dpi = 300,
        compression = "lzw")
-
 
 
 # Matched Group ####
