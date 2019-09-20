@@ -21,7 +21,6 @@ library(gridExtra)
 library(data.table)
 library(lmerTest)
 
-
 # paired t-tests for SRP group ####
 
 day.00 = Interpolate.Master[Interpolate.Master[, "ID"] %in% setdiff(StudyGroupIDs,614) &
@@ -352,6 +351,82 @@ ggplot(data = tmp2,
                 label = label),
             inherit.aes = FALSE,
             size = 5) +
+  geom_text(data = data.frame(Score.Type = c("Basic Mobility",
+                                             "Daily Activity",
+                                             "Applied Cognitive"),
+                              label = c("",
+                                        "36",
+                                        "")),
+            aes(x = rep(1,3),
+                y = c(round(tmp2[tmp2[, "Score.Type"] == "Basic Mobility" &
+                                   tmp2[, "Group"] == "Study Group" &
+                                   tmp2[, "DaysId"] == "Admission", "Score"]),
+                      round(tmp2[tmp2[, "Score.Type"] == "Daily Activity" &
+                                   tmp2[, "Group"] == "Study Group" &
+                                   tmp2[, "DaysId"] == "Admission", "Score"]),
+                      round(tmp2[tmp2[, "Score.Type"] == "Applied Cognitive" &
+                                   tmp2[, "Group"] == "Study Group" &
+                                   tmp2[, "DaysId"] == "Admission", "Score"])) + 3,
+                label = label),
+            inherit.aes = FALSE,
+            size = 5) +
+  geom_text(data = data.frame(Score.Type = c("Basic Mobility",
+                                             "Daily Activity",
+                                             "Applied Cognitive"),
+                              label = c("37",
+                                        "35",
+                                        "34")),
+            aes(x = rep(1,3),
+                y = c(round(tmp2[tmp2[, "Score.Type"] == "Basic Mobility" &
+                                   tmp2[, "Group"] == "Control Group" &
+                                   tmp2[, "DaysId"] == "Admission", "Score"]),
+                      round(tmp2[tmp2[, "Score.Type"] == "Daily Activity" &
+                                   tmp2[, "Group"] == "Control Group" &
+                                   tmp2[, "DaysId"] == "Admission", "Score"]),
+                      round(tmp2[tmp2[, "Score.Type"] == "Applied Cognitive" &
+                                   tmp2[, "Group"] == "Control Group" &
+                                   tmp2[, "DaysId"] == "Admission", "Score"])) - 3,
+                label = label),
+            inherit.aes = FALSE,
+            size = 5) +
+  geom_text(data = data.frame(Score.Type = c("Basic Mobility",
+                                             "Daily Activity",
+                                             "Applied Cognitive"),
+                              label = c("62",
+                                        "59",
+                                        "49")),
+            aes(x = rep(6,3),
+                y = c(round(tmp2[tmp2[, "Score.Type"] == "Basic Mobility" &
+                                   tmp2[, "Group"] == "Study Group" &
+                                   tmp2[, "DaysId"] == "120 Day", "Score"]),
+                      round(tmp2[tmp2[, "Score.Type"] == "Daily Activity" &
+                                   tmp2[, "Group"] == "Study Group" &
+                                   tmp2[, "DaysId"] == "120 Day", "Score"]),
+                      round(tmp2[tmp2[, "Score.Type"] == "Applied Cognitive" &
+                                   tmp2[, "Group"] == "Study Group" &
+                                   tmp2[, "DaysId"] == "120 Day", "Score"])) + 3,
+                label = label),
+            inherit.aes = FALSE,
+            size = 5) +
+  geom_text(data = data.frame(Score.Type = c("Basic Mobility",
+                                             "Daily Activity",
+                                             "Applied Cognitive"),
+                              label = c("55",
+                                        "52",
+                                        "44")),
+            aes(x = rep(6,3),
+                y = c(round(tmp2[tmp2[, "Score.Type"] == "Basic Mobility" &
+                                   tmp2[, "Group"] == "Control Group" &
+                                   tmp2[, "DaysId"] == "120 Day", "Score"]),
+                      round(tmp2[tmp2[, "Score.Type"] == "Daily Activity" &
+                                   tmp2[, "Group"] == "Control Group" &
+                                   tmp2[, "DaysId"] == "120 Day", "Score"]),
+                      round(tmp2[tmp2[, "Score.Type"] == "Applied Cognitive" &
+                                   tmp2[, "Group"] == "Control Group" &
+                                   tmp2[, "DaysId"] == "120 Day", "Score"])) - 3,
+                label = label),
+            inherit.aes = FALSE,
+            size = 5) +
   ggtitle(expression("Average" ~ AM-PAC^{TM} ~ "Score by Follow Up Time Point")) +
   geom_line() +
   geom_point(aes(x = DaysId,
@@ -366,8 +441,8 @@ ggplot(data = tmp2,
                                 8),
                      labels = c("Admission",
                                 "Discharge",
-                                "Non-participant",
-                                "SRP-participant")) +
+                                "non-participant (n=66)",
+                                "SRP-participant (n=76)")) +
   scale_x_discrete("Follow Up Time Point",
                    limits = c("Admission",
                               "Discharge",
@@ -383,7 +458,7 @@ ggplot(data = tmp2,
                                    hjust = 1))
 
 # save the plot
-ggsave("media/Functional Outcomes/AM PAC Average Line Graphs (After Matching) (no color, P & CI) (10-16-2018).tiff",
+ggsave("media/Functional Outcomes/AM PAC Average Line Graphs (After Matching) (no color, P & CI) (3-4-2019).tiff",
        device = "tiff",
        width = 10,
        height = 5,
@@ -411,8 +486,8 @@ for (i in 1:3){
   for (j in c(1,4)){
 
     # fit a mixed effects linear model
-    results = lmer.analysis(ScoreNum = i,
-                            Choice = j)
+    results = lmer.analysis(ScoreNum = 1,
+                            Choice = 1)
 
     # print the results
     print(summary(results))

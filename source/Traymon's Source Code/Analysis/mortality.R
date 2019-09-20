@@ -182,24 +182,25 @@ ggplot(tmp.data2,
   scale_y_continuous("Probability of Survival",
                      limits = c(0.60, 1)) +
   scale_linetype_manual(values = c("dashed", "solid"),
-                        labels = c("Non-participant", "SRP-participant")) +
+                        labels = c("non-participant (n=66)", 
+                                   "SRP-participant (n=76)")) +
   geom_text(x = 50,
             y = 0.80,
             label = "P = 0.039",
             size = 5) +
-  # geom_text(x = 50,
-  #           y = 0.775,
-  #           label = "95% CI",
-  #           size = 5) +
-  # geom_text(x = 50,
-  #           y = 0.75,
-  #           label = "(0.01,0.90)",
-  #           size = 5) +
+  geom_text(x = 50,
+            y = 0.775,
+            label = "95% CI",
+            size = 5) +
+  geom_text(x = 50,
+            y = 0.75,
+            label = "(0.01,0.90)",
+            size = 5) +
   ggtitle("Kaplan-Meier Curves for All-Cause Mortality") +
   theme(plot.title = element_text(hjust = 0.5),
         legend.position = "top")
 
-ggsave("media/Mortality/Survival Curve (After Matching) 10-19-2018.tiff", 
+ggsave("media/Mortality/Survival Curve (After Matching) 3-4-2019.tiff", 
        device = "tiff",
        width = 8,
        height = 5, 
@@ -1115,3 +1116,7 @@ mean(ABC>obs.ABC)
 # 
 # 
 # # save the plot
+
+
+# keep editing, any suggestions are welcome
+# Appendix D, Publications, accepted for publication, the three papers from thesis as well

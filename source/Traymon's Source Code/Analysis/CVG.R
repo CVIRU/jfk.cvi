@@ -97,7 +97,7 @@ mean(CVG.data.long.2[CVG.data.long.2[,"Participation Level"] == "PARTIAL","Total
 
 # Create table for barrier to completion ####
 
-CVG.data.BTC = NewMaster[NewMaster[, "ID"] %in% unique(CVG.data.wide[, "ID"]) &
+CVG.data.BTC = NewMaster[NewMaster[,"Group"] == "Study Group" &
                            NewMaster[, "DaysId"] == 10, c("BarrierToCompletion",
                                                           "BTC_Text")]
 
@@ -153,6 +153,9 @@ write.csv(for.table,
           row.names = TRUE)
 
 # Perform a one sided one sample test ####
+
+aov(Diff.from.Baseline ~ Follow.Up + Error(ID/Follow.Up), 
+    data = CVG.data.long.2)
 
 CI1 = t.test(CVG.data.long.2[CVG.data.long.2[, "Follow.Up"] == "9 Sessions", "Diff.from.Baseline"])
 

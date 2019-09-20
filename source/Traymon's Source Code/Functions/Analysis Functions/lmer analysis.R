@@ -98,7 +98,8 @@ lmer.analysis = function(AgeNum = 5,
   fmla1 = as.formula(paste("Score.Diff.from.Discharge ~ ", 
                            paste(c("Group",
                                    "Age",
-                                   "(ID | PairID)"), 
+                                   "(1 | PairID)",
+                                   "(1 | Follow.Up.After.Assignment)"), 
                                  collapse="+")))
   
   fmla2 = as.formula(paste("Score.Diff.from.Discharge ~ ", 
